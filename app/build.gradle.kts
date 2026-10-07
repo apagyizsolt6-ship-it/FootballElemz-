@@ -20,8 +20,10 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        // A kulcs a local.properties-ből jön
-        val highlightlyKey: String = project.findProperty("HIGHLIGHTLY_API_KEY") as? String ?: ""
+        // GitHub Actions secret + local.properties támogatás
+        val highlightlyKey = System.getenv("HIGHLIGHTLY_API_KEY")
+            ?: (project.findProperty("HIGHLIGHTLY_API_KEY") as? String)
+            ?: ""
         buildConfigField("String", "HIGHLIGHTLY_API_KEY", "\"$highlightlyKey\"")
     }
 
