@@ -1,0 +1,2 @@
+# FootballElemz-
+Foci elemző app
