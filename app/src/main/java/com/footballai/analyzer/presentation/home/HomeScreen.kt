@@ -73,10 +73,18 @@ fun HomeScreen(
                 },
                 actions = {
                     IconButton(onClick = { viewModel.loadMatches() }) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Frissítés", tint = GreenPrimary)
+                        Icon(
+                            imageVector = Icons.Default.Refresh,
+                            contentDescription = "Frissítés",
+                            tint = GreenPrimary
+                        )
                     }
                     IconButton(onClick = onSettingsClick) {
-                        Icon(Icons.Default.Settings, contentDescription = "Beállítások", tint = GreenPrimary)
+                        Icon(
+                            imageVector = Icons.Default.Settings,
+                            contentDescription = "Beállítások",
+                            tint = GreenPrimary
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = DarkBackground)
@@ -99,15 +107,7 @@ fun HomeScreen(
             ) {
                 dates.forEach { date ->
                     val isSelected = date == uiState.selectedDate
-                    val label = when (date) {
-                        today.minusDays(1) -> "Tegnap"
-                        today -> "Ma"
-                        today.plusDays(1) -> "Holnap"
-                        else -> {
-                            val day = date.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale("hu", "HU"))
-                            "\( {date.dayOfMonth}/ \){date.monthValue} $day"
-                        }
-                    }
+                    val label = buildDateLabel(date, today)
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(10.dp))
@@ -134,16 +134,29 @@ fun HomeScreen(
                     .padding(horizontal = 12.dp, vertical = 4.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                FilterChip("Összes", uiState.filter == MatchFilter.ALL) {
+                FilterChip(
+                    text = "Összes",
+                    selected = uiState.filter == MatchFilter.ALL
+                ) {
                     viewModel.setFilter(MatchFilter.ALL)
                 }
-                FilterChip("ÉLŐ", uiState.filter == MatchFilter.LIVE, isLive = true) {
+                FilterChip(
+                    text = "ÉLŐ",
+                    selected = uiState.filter == MatchFilter.LIVE,
+                    isLive = true
+                ) {
                     viewModel.setFilter(MatchFilter.LIVE)
                 }
-                FilterChip("Vége", uiState.filter == MatchFilter.FINISHED) {
+                FilterChip(
+                    text = "Vége",
+                    selected = uiState.filter == MatchFilter.FINISHED
+                ) {
                     viewModel.setFilter(MatchFilter.FINISHED)
                 }
-                FilterChip("Hátralévő", uiState.filter == MatchFilter.UPCOMING) {
+                FilterChip(
+                    text = "Hátralévő",
+                    selected = uiState.filter == MatchFilter.UPCOMING
+                ) {
                     viewModel.setFilter(MatchFilter.UPCOMING)
                 }
             }
@@ -152,20 +165,38 @@ fun HomeScreen(
 
             when {
                 uiState.isLoading -> {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
                         CircularProgressIndicator(color = GreenPrimary)
                     }
                 }
+
                 uiState.error != null -> {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text(text = uiState.error ?: "", color = TextSecondary)
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = uiState.error ?: "",
+                            color = TextSecondary
+                        )
                     }
                 }
+
                 uiState.leagueGroups.isEmpty() -> {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text(text = "Nincs meccs ezen a napon", color = TextSecondary)
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "Nincs meccs ezen a napon",
+                            color = TextSecondary
+                        )
                     }
                 }
+
                 else -> {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
@@ -194,6 +225,18 @@ fun HomeScreen(
                     }
                 }
             }
+        }
+    }
+}
+
+private fun buildDateLabel(date: LocalDate, today: LocalDate): String {
+    return when (date) {
+        today.minusDays(1) -> "Tegnap"
+        today -> "Ma"
+        today.plusDays(1) -> "Holnap"
+        else -> {
+            val dayName = date.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale("hu", "HU"))
+            date.dayOfMonth.toString() + "/" + date.monthValue.toString() + " " + dayName
         }
     }
 }
