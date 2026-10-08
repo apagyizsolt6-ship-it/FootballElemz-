@@ -4,14 +4,13 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.footballai.analyzer.data.repository.MatchRepository
 import com.footballai.analyzer.domain.model.Match
+import com.footballai.analyzer.util.LeagueTranslator
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.time.LocalDate
-import java.time.format.DateTimeFormatter
-import java.util.Locale
 import javax.inject.Inject
 
 enum class MatchFilter { ALL, LIVE, FINISHED, UPCOMING }
@@ -77,9 +76,9 @@ class HomeViewModel @Inject constructor(
             MatchFilter.LIVE -> allMatches.filter { it.isLive }
             MatchFilter.FINISHED -> allMatches.filter {
                 it.status.contains("Finished", ignoreCase = true) ||
-                it.status.contains("Vége", ignoreCase = true) ||
-                it.status == "Finished after penalties" ||
-                it.status == "Finished after extra time"
+                    it.status.contains("Vége", ignoreCase = true) ||
+                    it.status == "Finished after penalties" ||
+                    it.status == "Finished after extra time"
             }
             MatchFilter.UPCOMING -> allMatches.filter {
                 it.status == "Not started" || it.status == "To be announced"
@@ -87,9 +86,11 @@ class HomeViewModel @Inject constructor(
         }
 
         val groups = filtered
-            .groupBy { it.leagueName.ifBlank { "Egyéb" } }
-            .map { (league, matches) ->
-                LeagueGroup(league, matches.sortedBy { it.date })
+            .groupBy { match ->
+                LeagueTranslator.formatHeader(match.countryName, match.leagueName)
+            }
+            .map { (header, matches) ->
+                LeagueGroup(header, matches.sortedBy { it.date })
             }
             .sortedBy { it.leagueName }
 
