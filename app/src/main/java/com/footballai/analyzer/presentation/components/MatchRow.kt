@@ -29,6 +29,7 @@ import com.footballai.analyzer.ui.theme.RedLive
 import com.footballai.analyzer.ui.theme.TextPrimary
 import com.footballai.analyzer.ui.theme.TextSecondary
 import java.time.OffsetDateTime
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 @Composable
@@ -129,13 +130,27 @@ private fun statusText(match: Match): String {
         match.isLive -> "${match.minute ?: ""}'"
         match.status.contains("Finished", ignoreCase = true) -> "Vége"
         match.status == "Not started" || match.status == "To be announced" -> {
-            try {
-                val odt = OffsetDateTime.parse(match.date)
-                odt.format(DateTimeFormatter.ofPattern("HH:mm"))
-            } catch (e: Exception) {
-                "-"
-            }
+            formatBudapestTime(match.date)
         }
         else -> match.status.take(6)
+    }
+}
+
+/** UTC / offset → budapesti helyi idő (CEST/CET) */
+private fun formatBudapestTime(dateString: String?): String {
+    if (dateString.isNullOrBlank()) return "-"
+    return try {
+        val odt = OffsetDateTime.parse(dateString)
+        val budapest = odt.atZoneSameInstant(ZoneId.of("Europe/Budapest"))
+        budapest.format(DateTimeFormatter.ofPattern("HH:mm"))
+    } catch (e: Exception) {
+        try {
+            // Ha nincs offset a stringben
+            val odt = OffsetDateTime.parse(dateString + "Z")
+            val budapest = odt.atZoneSameInstant(ZoneId.of("Europe/Budapest"))
+            budapest.format(DateTimeFormatter.ofPattern("HH:mm"))
+        } catch (e2: Exception) {
+            "-"
+        }
     }
 }
