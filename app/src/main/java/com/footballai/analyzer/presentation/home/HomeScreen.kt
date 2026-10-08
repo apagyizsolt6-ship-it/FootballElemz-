@@ -112,6 +112,20 @@ fun HomeScreen(
                 }
             }
 
+            uiState.matchesByDate.isEmpty() -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "Nincs megjeleníthető meccs",
+                        color = TextSecondary
+                    )
+                }
+            }
+
             else -> {
                 LazyColumn(
                     modifier = Modifier
@@ -120,38 +134,21 @@ fun HomeScreen(
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    if (uiState.liveMatches.isNotEmpty()) {
+                    uiState.matchesByDate.forEach { (dateHeader, matches) ->
                         item {
                             Text(
-                                text = "Élő meccsek",
+                                text = dateHeader,
                                 style = MaterialTheme.typography.titleLarge,
                                 color = GreenPrimary,
-                                modifier = Modifier.padding(bottom = 4.dp)
+                                modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
                             )
                         }
-                        items(uiState.liveMatches, key = { it.id }) { match ->
+                        items(matches, key = { it.id }) { match ->
                             MatchCard(
                                 match = match,
                                 onClick = { onMatchClick(match.id) }
                             )
                         }
-                    }
-
-                    item {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "Mai meccsek",
-                            style = MaterialTheme.typography.titleLarge,
-                            color = TextPrimary,
-                            modifier = Modifier.padding(bottom = 4.dp)
-                        )
-                    }
-
-                    items(uiState.todayMatches, key = { it.id }) { match ->
-                        MatchCard(
-                            match = match,
-                            onClick = { onMatchClick(match.id) }
-                        )
                     }
                 }
             }
