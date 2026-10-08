@@ -9,6 +9,13 @@ data class StatisticsResponse(
 
 @Serializable
 data class TeamStatisticsDto(
-    val team: TeamDto? = null,
-    val statistics: Map<String, String>? = null
+    val teamId: Int? = null,
+    val teamName: String? = null,
+    val statistics: List<StatItemDto> = emptyList()
+)
+
+@Serializable
+data class StatItemDto(
+    val type: String? = null,
+    val value: String? = null
 )

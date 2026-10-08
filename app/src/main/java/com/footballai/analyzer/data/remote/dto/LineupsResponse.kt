@@ -4,24 +4,23 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class LineupsResponse(
-    val homeTeam: LineupTeamDto? = null,
-    val awayTeam: LineupTeamDto? = null
+    val data: List<TeamLineupDto> = emptyList()
 )
 
 @Serializable
-data class LineupTeamDto(
-    val id: Long? = null,
-    val name: String? = null,
-    val logo: String? = null,
+data class TeamLineupDto(
+    val teamId: Int? = null,
+    val teamName: String? = null,
     val formation: String? = null,
-    val initialLineup: List<List<LineupPlayerDto>>? = null,
-    val substitutes: List<LineupPlayerDto>? = null
+    val startXI: List<PlayerDto> = emptyList(),
+    val substitutes: List<PlayerDto> = emptyList()
 )
 
 @Serializable
-data class LineupPlayerDto(
-    val id: Long? = null,
+data class PlayerDto(
+    val id: Int? = null,
     val name: String? = null,
     val number: Int? = null,
-    val position: String? = null
+    val pos: String? = null,
+    val grid: String? = null
 )
