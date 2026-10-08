@@ -56,6 +56,7 @@ class MatchRepository @Inject constructor(
             status = status,
             leagueName = league?.name ?: "",
             leagueLogo = league?.logo,
+            countryName = country?.name,
             date = date,
             isLive = status in liveStatuses
         )
@@ -78,6 +79,7 @@ class MatchRepository @Inject constructor(
             status = status,
             leagueName = league?.name ?: "",
             leagueLogo = league?.logo,
+            countryName = country?.name,
             date = date,
             isLive = status in liveStatuses
         )
