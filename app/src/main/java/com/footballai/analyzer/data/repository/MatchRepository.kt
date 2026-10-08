@@ -14,29 +14,15 @@ class MatchRepository @Inject constructor(
     private val api: HighlightlyApi
 ) {
 
-    suspend fun getTodayMatches(): Result<List<Match>> {
+    suspend fun getMatchesForDate(date: LocalDate): Result<List<Match>> {
         return try {
-            val today = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE)
-            val response = api.getMatches(date = today, timezone = "Europe/Budapest")
-            val matches = response.data.map { it.toDomain() }
-            Result.success(matches)
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
-
-    suspend fun getLiveMatches(): Result<List<Match>> {
-        return try {
-            val today = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE)
-            val response = api.getMatches(date = today, timezone = "Europe/Budapest")
-            val liveStatuses = listOf(
-                "First half", "Second half", "Half time",
-                "Extra time", "Penalties", "In progress"
+            val dateStr = date.format(DateTimeFormatter.ISO_LOCAL_DATE)
+            val response = api.getMatches(
+                date = dateStr,
+                timezone = "Europe/Budapest",
+                limit = 100
             )
-            val live = response.data
-                .filter { it.state?.description in liveStatuses }
-                .map { it.toDomain() }
-            Result.success(live)
+            Result.success(response.data.map { it.toDomain() })
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -59,20 +45,19 @@ class MatchRepository @Inject constructor(
             "First half", "Second half", "Half time",
             "Extra time", "Penalties", "In progress"
         )
-        val isLive = status in liveStatuses
         return Match(
             id = id,
             homeTeamName = homeTeam?.name ?: "Home",
             awayTeamName = awayTeam?.name ?: "Away",
             homeTeamLogo = homeTeam?.logo,
             awayTeamLogo = awayTeam?.logo,
-            score = state?.score?.current ?: "0 - 0",
+            score = state?.score?.current ?: "- -",
             minute = state?.clock,
             status = status,
             leagueName = league?.name ?: "",
             leagueLogo = league?.logo,
             date = date,
-            isLive = isLive
+            isLive = status in liveStatuses
         )
     }
 
@@ -82,20 +67,19 @@ class MatchRepository @Inject constructor(
             "First half", "Second half", "Half time",
             "Extra time", "Penalties", "In progress"
         )
-        val isLive = status in liveStatuses
         return Match(
             id = id,
             homeTeamName = homeTeam?.name ?: "Home",
             awayTeamName = awayTeam?.name ?: "Away",
             homeTeamLogo = homeTeam?.logo,
             awayTeamLogo = awayTeam?.logo,
-            score = state?.score?.current ?: "0 - 0",
+            score = state?.score?.current ?: "- -",
             minute = state?.clock,
             status = status,
             leagueName = league?.name ?: "",
             leagueLogo = league?.logo,
             date = date,
-            isLive = isLive
+            isLive = status in liveStatuses
         )
     }
 }
