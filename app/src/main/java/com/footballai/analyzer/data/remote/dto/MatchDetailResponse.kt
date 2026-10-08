@@ -12,5 +12,4 @@ data class MatchDetailResponse(
     val awayTeam: TeamDto? = null,
     val league: LeagueDto? = null,
     val state: MatchStateDto? = null
-    // Később bővíthető predictions, events stb. mezőkkel
 )
