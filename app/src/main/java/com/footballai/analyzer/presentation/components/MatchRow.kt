@@ -47,7 +47,6 @@ fun MatchRow(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Idő / státusz
             Text(
                 text = statusText(match),
                 color = if (match.isLive) RedLive else TextSecondary,
@@ -59,7 +58,6 @@ fun MatchRow(
 
             Spacer(modifier = Modifier.width(8.dp))
 
-            // Hazai
             Row(
                 modifier = Modifier.weight(1f),
                 verticalAlignment = Alignment.CenterVertically,
@@ -85,7 +83,6 @@ fun MatchRow(
                 )
             }
 
-            // Eredmény
             Text(
                 text = match.score.replace("-", " - "),
                 color = if (match.isLive) GreenPrimary else TextPrimary,
@@ -97,7 +94,6 @@ fun MatchRow(
                 textAlign = TextAlign.Center
             )
 
-            // Vendég
             Row(
                 modifier = Modifier.weight(1f),
                 verticalAlignment = Alignment.CenterVertically,
@@ -136,7 +132,6 @@ private fun statusText(match: Match): String {
     }
 }
 
-/** UTC / offset → budapesti helyi idő (CEST/CET) */
 private fun formatBudapestTime(dateString: String?): String {
     if (dateString.isNullOrBlank()) return "-"
     return try {
@@ -145,7 +140,6 @@ private fun formatBudapestTime(dateString: String?): String {
         budapest.format(DateTimeFormatter.ofPattern("HH:mm"))
     } catch (e: Exception) {
         try {
-            // Ha nincs offset a stringben
             val odt = OffsetDateTime.parse(dateString + "Z")
             val budapest = odt.atZoneSameInstant(ZoneId.of("Europe/Budapest"))
             budapest.format(DateTimeFormatter.ofPattern("HH:mm"))
