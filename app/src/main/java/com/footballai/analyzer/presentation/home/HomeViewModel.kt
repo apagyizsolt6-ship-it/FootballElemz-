@@ -10,14 +10,22 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.time.LocalDate
-import java.time.OffsetDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 import javax.inject.Inject
 
+enum class MatchFilter { ALL, LIVE, FINISHED, UPCOMING }
+
+data class LeagueGroup(
+    val leagueName: String,
+    val matches: List<Match>
+)
+
 data class HomeUiState(
     val isLoading: Boolean = false,
-    val matchesByDate: Map<String, List<Match>> = emptyMap(),
+    val selectedDate: LocalDate = LocalDate.now(),
+    val filter: MatchFilter = MatchFilter.ALL,
+    val leagueGroups: List<LeagueGroup> = emptyList(),
     val error: String? = null
 )
 
@@ -29,49 +37,62 @@ class HomeViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 
-    private val dayFormatter = DateTimeFormatter.ofPattern("yyyy. MMMM d., EEEE", Locale("hu", "HU"))
+    private var allMatches: List<Match> = emptyList()
 
     init {
         loadMatches()
     }
 
+    fun selectDate(date: LocalDate) {
+        if (date == _uiState.value.selectedDate) return
+        _uiState.value = _uiState.value.copy(selectedDate = date)
+        loadMatches()
+    }
+
+    fun setFilter(filter: MatchFilter) {
+        _uiState.value = _uiState.value.copy(filter = filter)
+        applyFilterAndGroup()
+    }
+
     fun loadMatches() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
-
-            val result = repository.getTodayMatches()
-
+            val result = repository.getMatchesForDate(_uiState.value.selectedDate)
             if (result.isSuccess) {
-                val matches = result.getOrDefault(emptyList())
-                val grouped = matches
-                    .sortedBy { it.date }
-                    .groupBy { match -> formatDateHeader(match.date) }
-                _uiState.value = HomeUiState(
-                    isLoading = false,
-                    matchesByDate = grouped
-                )
+                allMatches = result.getOrDefault(emptyList())
+                applyFilterAndGroup()
+                _uiState.value = _uiState.value.copy(isLoading = false)
             } else {
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    error = result.exceptionOrNull()?.message ?: "Ismeretlen hiba"
+                    error = result.exceptionOrNull()?.message ?: "Hiba a betöltéskor"
                 )
             }
         }
     }
 
-    private fun formatDateHeader(dateString: String?): String {
-        if (dateString.isNullOrBlank()) return "Ismeretlen dátum"
-        return try {
-            val odt = OffsetDateTime.parse(dateString)
-            val localDate = odt.toLocalDate()
-            when (localDate) {
-                LocalDate.now() -> "Ma – ${localDate.format(dayFormatter)}"
-                LocalDate.now().plusDays(1) -> "Holnap – ${localDate.format(dayFormatter)}"
-                LocalDate.now().minusDays(1) -> "Tegnap – ${localDate.format(dayFormatter)}"
-                else -> localDate.format(dayFormatter)
+    private fun applyFilterAndGroup() {
+        val filtered = when (_uiState.value.filter) {
+            MatchFilter.ALL -> allMatches
+            MatchFilter.LIVE -> allMatches.filter { it.isLive }
+            MatchFilter.FINISHED -> allMatches.filter {
+                it.status.contains("Finished", ignoreCase = true) ||
+                it.status.contains("Vége", ignoreCase = true) ||
+                it.status == "Finished after penalties" ||
+                it.status == "Finished after extra time"
             }
-        } catch (e: Exception) {
-            dateString.take(10)
+            MatchFilter.UPCOMING -> allMatches.filter {
+                it.status == "Not started" || it.status == "To be announced"
+            }
         }
+
+        val groups = filtered
+            .groupBy { it.leagueName.ifBlank { "Egyéb" } }
+            .map { (league, matches) ->
+                LeagueGroup(league, matches.sortedBy { it.date })
+            }
+            .sortedBy { it.leagueName }
+
+        _uiState.value = _uiState.value.copy(leagueGroups = groups)
     }
 }
