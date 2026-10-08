@@ -47,7 +47,7 @@ class LlmService @Inject constructor(
                 val apiKey = apiKeyProvider.getLlmKey()
                 if (apiKey.isBlank()) {
                     return@withContext Result.failure(
-                        Exception("Nincs LLM API kulcs. Állítsd be a Beállításokban.")
+                        Exception("Nincs LLM API kulcs. Allitsd be a Beallitasokban.")
                     )
                 }
 
@@ -62,16 +62,17 @@ class LlmService @Inject constructor(
                     messages = listOf(
                         ChatMessage(
                             role = "system",
-                            content = """Te egy profi labdarúgó-elemző vagy. Magyarul írj.
-Adj részletes, szakértői meccselemzést: helyzetértékelés, taktika, kulcsjátékosok,
-statisztikai olvasat, előrejelzés. Legyél konkrét és szakszerű, ne sablonos."""
+                            content = "Te egy profi labdarugo-elemzo vagy. Magyarul irj. " +
+                                "Adj reszletes, szakertori meccselemzest: helyzetertékelés, taktika, " +
+                                "kulcsjatekosok, statisztikai olvasat, elorejelzes. " +
+                                "Legyel konkret es szakszeru, ne sablonos."
                         ),
                         ChatMessage(role = "user", content = prompt)
                     )
                 )
 
-                val requestBody = json.encodeToString(ChatRequest.serializer(), body)
-                    .toRequestBody("application/json".toMediaType())
+                val requestJson = json.encodeToString(ChatRequest.serializer(), body)
+                val requestBody = requestJson.toRequestBody("application/json".toMediaType())
 
                 val request = Request.Builder()
                     .url(baseUrl + "chat/completions")
@@ -85,13 +86,15 @@ statisztikai olvasat, előrejelzés. Legyél konkrét és szakszerű, ne sablono
 
                 if (!response.isSuccessful) {
                     return@withContext Result.failure(
-                        Exception("LLM hiba (${response.code}): ${responseBody.take(200)}")
+                        Exception("LLM hiba (" + response.code + "): " + responseBody.take(200))
                     )
                 }
 
                 val parsed = json.decodeFromString(ChatResponse.serializer(), responseBody)
                 val text = parsed.choices.firstOrNull()?.message?.content
-                    ?: return@withContext Result.failure(Exception("Üres LLM válasz"))
+                if (text == null) {
+                    return@withContext Result.failure(Exception("Ures LLM valasz"))
+                }
 
                 Result.success(text)
             } catch (e: Exception) {
@@ -100,46 +103,54 @@ statisztikai olvasat, előrejelzés. Legyél konkrét és szakszerű, ne sablono
         }
 
     private fun buildPrompt(match: Match, extra: MatchExtraData): String {
-        return buildString {
-            appendLine("Elemezd a következő focimeccset részletesen:")
-            appendLine()
-            appendLine("Hazai: ${match.homeTeamName}")
-            appendLine("Vendég: ${match.awayTeamName}")
-            appendLine("Liga: ${match.leagueName}")
-            appendLine("Ország: ${match.countryName ?: "-"}")
-            appendLine("Állás: ${match.score}")
-            appendLine("Státusz: ${match.status}")
-            if (match.isLive) appendLine("Perc: ${match.minute ?: "?"}'")
-            appendLine("Dátum: ${match.date ?: "-"}")
-            appendLine()
-
-            if (extra.statistics.isNotEmpty()) {
-                appendLine("STATISZTIKÁK:")
-                extra.statistics.forEach { team ->
-                    appendLine("${team.teamName}:")
-                    team.stats.forEach { (k, v) -> appendLine("  - $k: $v") }
-                }
-                appendLine()
-            }
-
-            if (extra.lineups.isNotEmpty()) {
-                appendLine("FELÁLLÁSOK:")
-                extra.lineups.forEach { team ->
-                    appendLine("\( {team.teamName} ( \){team.formation ?: "?"}):")
-                    appendLine("  Kezdő: ${team.starters.joinToString { it.name }}")
-                    if (team.substitutes.isNotEmpty()) {
-                        appendLine("  Cserék: ${team.substitutes.joinToString { it.name }}")
-                    }
-                }
-                appendLine()
-            }
-
-            if (extra.highlights.isNotEmpty()) {
-                appendLine("HIGHLIGHTOK: ${extra.highlights.joinToString { it.title }}")
-                appendLine()
-            }
-
-            appendLine("Írj 400–700 szó körüli, strukturált magyar elemzést.")
+        val sb = StringBuilder()
+        sb.appendLine("Elemezd a kovetkezo focimeccset reszletesen:")
+        sb.appendLine()
+        sb.appendLine("Hazai: " + match.homeTeamName)
+        sb.appendLine("Vendeg: " + match.awayTeamName)
+        sb.appendLine("Liga: " + match.leagueName)
+        sb.appendLine("Orszag: " + (match.countryName ?: "-"))
+        sb.appendLine("Allas: " + match.score)
+        sb.appendLine("Statusz: " + match.status)
+        if (match.isLive) {
+            sb.appendLine("Perc: " + (match.minute?.toString() ?: "?") + "'")
         }
+        sb.appendLine("Datum: " + (match.date ?: "-"))
+        sb.appendLine()
+
+        if (extra.statistics.isNotEmpty()) {
+            sb.appendLine("STATISZTIKAK:")
+            for (team in extra.statistics) {
+                sb.appendLine(team.teamName + ":")
+                for ((k, v) in team.stats) {
+                    sb.appendLine("  - " + k + ": " + v)
+                }
+            }
+            sb.appendLine()
+        }
+
+        if (extra.lineups.isNotEmpty()) {
+            sb.appendLine("FELALLASOK:")
+            for (team in extra.lineups) {
+                val formation = team.formation ?: "?"
+                sb.appendLine(team.teamName + " (" + formation + "):")
+                val starterNames = team.starters.joinToString(", ") { p -> p.name }
+                sb.appendLine("  Kezdo: " + starterNames)
+                if (team.substitutes.isNotEmpty()) {
+                    val subNames = team.substitutes.joinToString(", ") { p -> p.name }
+                    sb.appendLine("  Cserek: " + subNames)
+                }
+            }
+            sb.appendLine()
+        }
+
+        if (extra.highlights.isNotEmpty()) {
+            val titles = extra.highlights.joinToString(", ") { h -> h.title }
+            sb.appendLine("HIGHLIGHTOK: " + titles)
+            sb.appendLine()
+        }
+
+        sb.appendLine("Irj 400-700 szo koruli, strukturált magyar elemzest.")
+        return sb.toString()
     }
 }
