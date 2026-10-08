@@ -3,6 +3,7 @@ package com.footballai.analyzer.presentation.matchdetail
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.footballai.analyzer.data.remote.LlmService
 import com.footballai.analyzer.data.repository.MatchRepository
 import com.footballai.analyzer.domain.model.Match
 import com.footballai.analyzer.domain.model.MatchExtraData
@@ -26,6 +27,7 @@ data class MatchDetailUiState(
 @HiltViewModel
 class MatchDetailViewModel @Inject constructor(
     private val repository: MatchRepository,
+    private val llmService: LlmService,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -71,53 +73,21 @@ class MatchDetailViewModel @Inject constructor(
         val extra = _uiState.value.extra
 
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isAiLoading = true, selectedTab = 4)
+            _uiState.value = _uiState.value.copy(isAiLoading = true, selectedTab = 4, aiAnalysis = null)
 
-            val analysis = buildString {
-                appendLine("⚽ ${match.homeTeamName} vs ${match.awayTeamName}")
-                appendLine("Liga: ${match.leagueName}")
-                appendLine("Állás: ${match.score}")
-                appendLine()
-                appendLine("📊 Elemzés:")
-                if (match.isLive) {
-                    appendLine("• A meccs jelenleg élőben zajlik (${match.minute ?: "?"}').")
-                } else if (match.status.contains("Finished", ignoreCase = true)) {
-                    appendLine("• A mérkőzés véget ért.")
-                } else {
-                    appendLine("• A meccs még nem kezdődött el.")
-                }
+            val result = llmService.analyzeMatch(match, extra)
 
-                if (extra.statistics.size >= 2) {
-                    val home = extra.statistics[0]
-                    val away = extra.statistics[1]
-                    appendLine()
-                    appendLine("Statisztikai összevetés:")
-                    home.stats.forEach { (key, homeVal) ->
-                        val awayVal = away.stats[key] ?: "-"
-                        appendLine("• $key: $homeVal – $awayVal")
-                    }
-                } else {
-                    appendLine()
-                    appendLine("• Részletes statisztika még nem elérhető.")
-                }
-
-                if (extra.lineups.isNotEmpty()) {
-                    appendLine()
-                    appendLine("Felállások elérhetők (${extra.lineups.size} csapat).")
-                }
-
-                if (extra.highlights.isNotEmpty()) {
-                    appendLine("Highlight videók: ${extra.highlights.size} db")
-                }
-
-                appendLine()
-                appendLine("💡 Tipp: Figyeld a labdabirtoklást és a lövések számát – ezek gyakran előrejelzik a gólokat.")
+            _uiState.value = if (result.isSuccess) {
+                _uiState.value.copy(
+                    isAiLoading = false,
+                    aiAnalysis = result.getOrThrow()
+                )
+            } else {
+                _uiState.value.copy(
+                    isAiLoading = false,
+                    aiAnalysis = "❌ LLM hiba:\n${result.exceptionOrNull()?.message}"
+                )
             }
-
-            _uiState.value = _uiState.value.copy(
-                isAiLoading = false,
-                aiAnalysis = analysis
-            )
         }
     }
 }
