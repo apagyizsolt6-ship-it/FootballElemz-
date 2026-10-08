@@ -9,12 +9,15 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.time.LocalDate
+import java.time.OffsetDateTime
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 import javax.inject.Inject
 
 data class HomeUiState(
     val isLoading: Boolean = false,
-    val liveMatches: List<Match> = emptyList(),
-    val todayMatches: List<Match> = emptyList(),
+    val matchesByDate: Map<String, List<Match>> = emptyMap(),
     val error: String? = null
 )
 
@@ -26,6 +29,8 @@ class HomeViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 
+    private val dayFormatter = DateTimeFormatter.ofPattern("yyyy. MMMM d., EEEE", Locale("hu", "HU"))
+
     init {
         loadMatches()
     }
@@ -34,24 +39,39 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
 
-            val liveResult = repository.getLiveMatches()
-            val todayResult = repository.getTodayMatches()
+            val result = repository.getTodayMatches()
 
-            if (liveResult.isSuccess && todayResult.isSuccess) {
+            if (result.isSuccess) {
+                val matches = result.getOrDefault(emptyList())
+                val grouped = matches
+                    .sortedBy { it.date }
+                    .groupBy { match -> formatDateHeader(match.date) }
                 _uiState.value = HomeUiState(
                     isLoading = false,
-                    liveMatches = liveResult.getOrDefault(emptyList()),
-                    todayMatches = todayResult.getOrDefault(emptyList())
+                    matchesByDate = grouped
                 )
             } else {
-                val errorMsg = liveResult.exceptionOrNull()?.message
-                    ?: todayResult.exceptionOrNull()?.message
-                    ?: "Ismeretlen hiba"
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    error = errorMsg
+                    error = result.exceptionOrNull()?.message ?: "Ismeretlen hiba"
                 )
             }
+        }
+    }
+
+    private fun formatDateHeader(dateString: String?): String {
+        if (dateString.isNullOrBlank()) return "Ismeretlen dátum"
+        return try {
+            val odt = OffsetDateTime.parse(dateString)
+            val localDate = odt.toLocalDate()
+            when (localDate) {
+                LocalDate.now() -> "Ma – ${localDate.format(dayFormatter)}"
+                LocalDate.now().plusDays(1) -> "Holnap – ${localDate.format(dayFormatter)}"
+                LocalDate.now().minusDays(1) -> "Tegnap – ${localDate.format(dayFormatter)}"
+                else -> localDate.format(dayFormatter)
+            }
+        } catch (e: Exception) {
+            dateString.take(10)
         }
     }
 }
