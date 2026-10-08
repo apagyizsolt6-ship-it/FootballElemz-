@@ -12,7 +12,9 @@ import javax.inject.Inject
 
 data class SettingsUiState(
     val apiKey: String = "",
-    val isSaved: Boolean = false,
+    val llmKey: String = "",
+    val llmBaseUrl: String = "https://api.openai.com/v1/",
+    val llmModel: String = "gpt-4o-mini",
     val message: String? = null
 )
 
@@ -26,22 +28,38 @@ class SettingsViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            val key = apiKeyProvider.getApiKey()
-            _uiState.value = _uiState.value.copy(apiKey = key)
+            _uiState.value = SettingsUiState(
+                apiKey = apiKeyProvider.getApiKey(),
+                llmKey = apiKeyProvider.getLlmKey(),
+                llmBaseUrl = apiKeyProvider.getLlmBaseUrl(),
+                llmModel = apiKeyProvider.getLlmModel()
+            )
         }
     }
 
     fun onApiKeyChange(value: String) {
-        _uiState.value = _uiState.value.copy(apiKey = value, isSaved = false, message = null)
+        _uiState.value = _uiState.value.copy(apiKey = value, message = null)
     }
 
-    fun saveApiKey() {
+    fun onLlmKeyChange(value: String) {
+        _uiState.value = _uiState.value.copy(llmKey = value, message = null)
+    }
+
+    fun onLlmBaseUrlChange(value: String) {
+        _uiState.value = _uiState.value.copy(llmBaseUrl = value, message = null)
+    }
+
+    fun onLlmModelChange(value: String) {
+        _uiState.value = _uiState.value.copy(llmModel = value, message = null)
+    }
+
+    fun saveAll() {
         viewModelScope.launch {
             apiKeyProvider.saveApiKey(_uiState.value.apiKey)
-            _uiState.value = _uiState.value.copy(
-                isSaved = true,
-                message = "API kulcs elmentve"
-            )
+            apiKeyProvider.saveLlmKey(_uiState.value.llmKey)
+            apiKeyProvider.saveLlmBaseUrl(_uiState.value.llmBaseUrl)
+            apiKeyProvider.saveLlmModel(_uiState.value.llmModel)
+            _uiState.value = _uiState.value.copy(message = "Minden beállítás elmentve")
         }
     }
 }
