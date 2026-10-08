@@ -1,6 +1,6 @@
 package com.footballai.analyzer.di
 
-import com.footballai.analyzer.BuildConfig
+import com.footballai.analyzer.data.local.ApiKeyProvider
 import com.footballai.analyzer.data.remote.HighlightlyApi
 import dagger.Module
 import dagger.Provides
@@ -29,20 +29,17 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideOkHttpClient(): OkHttpClient {
+    fun provideOkHttpClient(apiKeyProvider: ApiKeyProvider): OkHttpClient {
         val logging = HttpLoggingInterceptor().apply {
-            level = if (BuildConfig.DEBUG) {
-                HttpLoggingInterceptor.Level.BODY
-            } else {
-                HttpLoggingInterceptor.Level.NONE
-            }
+            level = HttpLoggingInterceptor.Level.BODY
         }
 
         return OkHttpClient.Builder()
             .addInterceptor { chain ->
+                val apiKey = apiKeyProvider.getApiKeyBlocking()
                 val original = chain.request()
                 val request = original.newBuilder()
-                    .header("x-rapidapi-key", BuildConfig.HIGHLIGHTLY_API_KEY)
+                    .header("x-rapidapi-key", apiKey)
                     .method(original.method, original.body)
                     .build()
                 chain.proceed(request)
