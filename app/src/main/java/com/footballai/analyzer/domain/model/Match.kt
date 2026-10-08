@@ -11,6 +11,7 @@ data class Match(
     val status: String,
     val leagueName: String,
     val leagueLogo: String?,
+    val countryName: String?,
     val date: String?,
     val isLive: Boolean
 )
