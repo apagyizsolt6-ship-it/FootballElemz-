@@ -19,12 +19,6 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-
-        // GitHub Actions secret + local.properties támogatás
-        val highlightlyKey = System.getenv("HIGHLIGHTLY_API_KEY")
-            ?: (project.findProperty("HIGHLIGHTLY_API_KEY") as? String)
-            ?: ""
-        buildConfigField("String", "HIGHLIGHTLY_API_KEY", "\"$highlightlyKey\"")
     }
 
     buildTypes {
@@ -76,6 +70,9 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
 
     implementation(libs.coil.compose)
+
+    // DataStore – API kulcs biztonságos tárolására
+    implementation("androidx.datastore:datastore-preferences:1.1.1")
 
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
