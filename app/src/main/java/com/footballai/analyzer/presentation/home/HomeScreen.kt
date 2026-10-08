@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -48,7 +47,6 @@ import com.footballai.analyzer.ui.theme.RedLive
 import com.footballai.analyzer.ui.theme.TextPrimary
 import com.footballai.analyzer.ui.theme.TextSecondary
 import java.time.LocalDate
-import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.util.Locale
 
@@ -75,10 +73,10 @@ fun HomeScreen(
                 },
                 actions = {
                     IconButton(onClick = { viewModel.loadMatches() }) {
-                        Icon(Icons.Default.Refresh, "Frissítés", tint = GreenPrimary)
+                        Icon(Icons.Default.Refresh, contentDescription = "Frissítés", tint = GreenPrimary)
                     }
                     IconButton(onClick = onSettingsClick) {
-                        Icon(Icons.Default.Settings, "Beállítások", tint = GreenPrimary)
+                        Icon(Icons.Default.Settings, contentDescription = "Beállítások", tint = GreenPrimary)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = DarkBackground)
@@ -91,7 +89,7 @@ fun HomeScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            // ===== NAPTÁR SÁV =====
+            // NAPTÁR SÁV
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -106,8 +104,8 @@ fun HomeScreen(
                         today -> "Ma"
                         today.plusDays(1) -> "Holnap"
                         else -> {
-                            val day = date.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale("hu"))
-                            "\( {date.dayOfMonth}/ \){date.monthValue}\n$day"
+                            val day = date.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale("hu", "HU"))
+                            "\( {date.dayOfMonth}/ \){date.monthValue} $day"
                         }
                     }
                     Box(
@@ -123,14 +121,13 @@ fun HomeScreen(
                             color = if (isSelected) DarkBackground else TextPrimary,
                             fontSize = 12.sp,
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                            textAlign = TextAlign.Center,
-                            lineHeight = 14.sp
+                            textAlign = TextAlign.Center
                         )
                     }
                 }
             }
 
-            // ===== SZŰRŐ TABOK =====
+            // SZŰRŐ TABOK
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -153,7 +150,6 @@ fun HomeScreen(
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            // ===== TARTALOM =====
             when {
                 uiState.isLoading -> {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -162,12 +158,12 @@ fun HomeScreen(
                 }
                 uiState.error != null -> {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text(uiState.error ?: "", color = TextSecondary)
+                        Text(text = uiState.error ?: "", color = TextSecondary)
                     }
                 }
                 uiState.leagueGroups.isEmpty() -> {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text("Nincs meccs ezen a napon", color = TextSecondary)
+                        Text(text = "Nincs meccs ezen a napon", color = TextSecondary)
                     }
                 }
                 else -> {
@@ -177,7 +173,6 @@ fun HomeScreen(
                     ) {
                         uiState.leagueGroups.forEach { group ->
                             item {
-                                // Liga fejléc
                                 Text(
                                     text = group.leagueName.uppercase(),
                                     color = TextSecondary,
