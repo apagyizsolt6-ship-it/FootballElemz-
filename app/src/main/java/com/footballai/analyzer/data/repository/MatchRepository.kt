@@ -3,7 +3,12 @@ package com.footballai.analyzer.data.repository
 import com.footballai.analyzer.data.remote.HighlightlyApi
 import com.footballai.analyzer.data.remote.dto.MatchDetailResponse
 import com.footballai.analyzer.data.remote.dto.MatchDto
+import com.footballai.analyzer.domain.model.Highlight
 import com.footballai.analyzer.domain.model.Match
+import com.footballai.analyzer.domain.model.MatchExtraData
+import com.footballai.analyzer.domain.model.Player
+import com.footballai.analyzer.domain.model.TeamLineup
+import com.footballai.analyzer.domain.model.TeamStat
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import javax.inject.Inject
@@ -37,6 +42,55 @@ class MatchRepository @Inject constructor(
         } catch (e: Exception) {
             Result.failure(e)
         }
+    }
+
+    suspend fun getMatchExtraData(matchId: Long): MatchExtraData {
+        val stats = try {
+            val resp = api.getStatistics(matchId)
+            resp.data.map { team ->
+                TeamStat(
+                    teamName = team.teamName ?: "Csapat",
+                    stats = team.statistics.associate {
+                        (it.type ?: "") to (it.value ?: "-")
+                    }
+                )
+            }
+        } catch (_: Exception) {
+            emptyList()
+        }
+
+        val lineups = try {
+            val resp = api.getLineups(matchId)
+            resp.data.map { team ->
+                TeamLineup(
+                    teamName = team.teamName ?: "Csapat",
+                    formation = team.formation,
+                    starters = team.startXI.map {
+                        Player(it.name ?: "?", it.number, it.pos)
+                    },
+                    substitutes = team.substitutes.map {
+                        Player(it.name ?: "?", it.number, it.pos)
+                    }
+                )
+            }
+        } catch (_: Exception) {
+            emptyList()
+        }
+
+        val highlights = try {
+            val resp = api.getHighlights(matchId = matchId)
+            resp.data.map {
+                Highlight(
+                    title = it.title ?: "Highlight",
+                    url = it.url,
+                    imageUrl = it.imgUrl
+                )
+            }
+        } catch (_: Exception) {
+            emptyList()
+        }
+
+        return MatchExtraData(stats, lineups, highlights)
     }
 
     private fun MatchDto.toDomain(): Match {
