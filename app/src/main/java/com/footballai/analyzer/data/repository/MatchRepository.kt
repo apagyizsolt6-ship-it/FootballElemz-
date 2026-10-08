@@ -1,6 +1,7 @@
 package com.footballai.analyzer.data.repository
 
 import com.footballai.analyzer.data.remote.HighlightlyApi
+import com.footballai.analyzer.data.remote.dto.MatchDetailResponse
 import com.footballai.analyzer.data.remote.dto.MatchDto
 import com.footballai.analyzer.domain.model.Match
 import java.time.LocalDate
@@ -28,8 +29,12 @@ class MatchRepository @Inject constructor(
         return try {
             val today = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE)
             val response = api.getMatches(date = today, timezone = "Europe/Budapest")
+            val liveStatuses = listOf(
+                "First half", "Second half", "Half time",
+                "Extra time", "Penalties", "In progress"
+            )
             val live = response.data
-                .filter { it.state?.description in listOf("First half", "Second half", "Half time", "Extra time", "Penalties", "In progress") }
+                .filter { it.state?.description in liveStatuses }
                 .map { it.toDomain() }
             Result.success(live)
         } catch (e: Exception) {
@@ -40,7 +45,9 @@ class MatchRepository @Inject constructor(
     suspend fun getMatchById(id: Long): Result<Match> {
         return try {
             val response = api.getMatchById(id)
-            Result.success(response.toDomain())
+            val matchDto = response.firstOrNull()
+                ?: return Result.failure(Exception("Meccs nem található"))
+            Result.success(matchDto.toDomain())
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -48,7 +55,11 @@ class MatchRepository @Inject constructor(
 
     private fun MatchDto.toDomain(): Match {
         val status = state?.description ?: "Unknown"
-        val isLive = status in listOf("First half", "Second half", "Half time", "Extra time", "Penalties", "In progress")
+        val liveStatuses = listOf(
+            "First half", "Second half", "Half time",
+            "Extra time", "Penalties", "In progress"
+        )
+        val isLive = status in liveStatuses
         return Match(
             id = id,
             homeTeamName = homeTeam?.name ?: "Home",
@@ -65,9 +76,13 @@ class MatchRepository @Inject constructor(
         )
     }
 
-    private fun com.footballai.analyzer.data.remote.dto.MatchDetailResponse.toDomain(): Match {
+    private fun MatchDetailResponse.toDomain(): Match {
         val status = state?.description ?: "Unknown"
-        val isLive = status in listOf("First half", "Second half", "Half time", "Extra time", "Penalties", "In progress")
+        val liveStatuses = listOf(
+            "First half", "Second half", "Half time",
+            "Extra time", "Penalties", "In progress"
+        )
+        val isLive = status in liveStatuses
         return Match(
             id = id,
             homeTeamName = homeTeam?.name ?: "Home",
