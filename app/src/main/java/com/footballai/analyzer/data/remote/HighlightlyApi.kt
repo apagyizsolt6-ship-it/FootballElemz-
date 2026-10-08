@@ -23,7 +23,7 @@ interface HighlightlyApi {
     @GET("matches/{id}")
     suspend fun getMatchById(
         @Path("id") id: Long
-    ): MatchDetailResponse
+    ): List<MatchDetailResponse>
 
     @GET("statistics/{matchId}")
     suspend fun getStatistics(
