@@ -2,19 +2,24 @@ package com.footballai.analyzer.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-val GreenPrimary = Color(0xFF00C853)
-val GreenDark = Color(0xFF00A844)
-val GreenLight = Color(0xFF69F0AE)
-
+// Dark
 val DarkBackground = Color(0xFF0D1117)
-val DarkSurface = Color(0xFF161B22)
-val DarkCard = Color(0xFF21262D)
-val DarkElevated = Color(0xFF30363D)
+val DarkCard = Color(0xFF161B22)
+val DarkSurface = Color(0xFF1C2128)
 
-val GoldAccent = Color(0xFFFFD700)
-val TextPrimary = Color(0xFFE6EDF3)
-val TextSecondary = Color(0xFF8B949E)
-val TextTertiary = Color(0xFF6E7681)
+// Light
+val LightBackground = Color(0xFFF5F6F8)
+val LightCard = Color(0xFFFFFFFF)
+val LightSurface = Color(0xFFEEF0F3)
 
-val RedLive = Color(0xFFFF5252)
-val BlueAway = Color(0xFF448AFF)
+// Shared
+val GreenPrimary = Color(0xFF3DDC84)
+val GreenDark = Color(0xFF2EAF68)
+val RedLive = Color(0xFFE53935)
+val TextPrimaryDark = Color(0xFFE6EDF3)
+val TextSecondaryDark = Color(0xFF8B949E)
+val TextPrimaryLight = Color(0xFF1A1A1A)
+val TextSecondaryLight = Color(0xFF5C6370)
+val LiveRowDark = Color(0xFF1A2E1A)
+val LiveRowLight = Color(0xFFE8F8EF)
+val PinGold = Color(0xFFFFC107)
