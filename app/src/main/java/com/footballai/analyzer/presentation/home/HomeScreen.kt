@@ -22,7 +22,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.outlined.StarOutline
+import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -38,6 +38,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -98,7 +99,6 @@ fun HomeScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            // NAPTÁR
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -119,7 +119,7 @@ fun HomeScreen(
                         Text(
                             text = buildDateLabel(date, today),
                             color = if (isSelected) {
-                                if (c.isDark) c.background else androidx.compose.ui.graphics.Color.White
+                                if (c.isDark) c.background else Color.White
                             } else c.textPrimary,
                             fontSize = 12.sp,
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
@@ -129,7 +129,6 @@ fun HomeScreen(
                 }
             }
 
-            // SZŰRŐK
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -154,7 +153,6 @@ fun HomeScreen(
                 }
             }
 
-            // SZÁMLÁLÓ
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -245,7 +243,7 @@ private fun LeagueHeader(
             modifier = Modifier.size(32.dp)
         ) {
             Icon(
-                imageVector = if (isPinned) Icons.Filled.Star else Icons.Outlined.StarOutline,
+                imageVector = if (isPinned) Icons.Filled.Star else Icons.Filled.StarBorder,
                 contentDescription = if (isPinned) "Kedvenc levétel" else "Kedvenc",
                 tint = if (isPinned) c.pinGold else c.textSecondary,
                 modifier = Modifier.size(18.dp)
@@ -289,7 +287,7 @@ private fun FilterChip(
         Text(
             text = text,
             color = if (selected) {
-                if (c.isDark) c.background else androidx.compose.ui.graphics.Color.White
+                if (c.isDark) c.background else Color.White
             } else c.textPrimary,
             fontSize = 13.sp,
             fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
