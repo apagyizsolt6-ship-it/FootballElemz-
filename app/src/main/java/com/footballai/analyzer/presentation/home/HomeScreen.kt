@@ -161,10 +161,37 @@ fun HomeScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(4.dp))
+            // MECCSSZÁMLÁLÓ
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 6.dp),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                val countText = if (uiState.filter == MatchFilter.ALL) {
+                    "${uiState.totalMatchCount} meccs"
+                } else {
+                    "${uiState.filteredMatchCount} / ${uiState.totalMatchCount} meccs"
+                }
+                Text(
+                    text = countText,
+                    color = TextSecondary,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium
+                )
+                if (uiState.isLoading) {
+                    Text(
+                        text = "Betöltés...",
+                        color = GreenPrimary,
+                        fontSize = 13.sp
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(2.dp))
 
             when {
-                uiState.isLoading -> {
+                uiState.isLoading && uiState.leagueGroups.isEmpty() -> {
                     Box(
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
@@ -173,7 +200,7 @@ fun HomeScreen(
                     }
                 }
 
-                uiState.error != null -> {
+                uiState.error != null && uiState.leagueGroups.isEmpty() -> {
                     Box(
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
@@ -205,7 +232,7 @@ fun HomeScreen(
                         uiState.leagueGroups.forEach { group ->
                             item {
                                 Text(
-                                    text = group.leagueName.uppercase(),
+                                    text = group.leagueName,
                                     color = TextSecondary,
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold,

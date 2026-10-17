@@ -25,6 +25,8 @@ data class HomeUiState(
     val selectedDate: LocalDate = LocalDate.now(),
     val filter: MatchFilter = MatchFilter.ALL,
     val leagueGroups: List<LeagueGroup> = emptyList(),
+    val totalMatchCount: Int = 0,
+    val filteredMatchCount: Int = 0,
     val error: String? = null
 )
 
@@ -60,10 +62,15 @@ class HomeViewModel @Inject constructor(
             if (result.isSuccess) {
                 allMatches = result.getOrDefault(emptyList())
                 applyFilterAndGroup()
-                _uiState.value = _uiState.value.copy(isLoading = false)
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    totalMatchCount = allMatches.size
+                )
             } else {
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
+                    totalMatchCount = 0,
+                    filteredMatchCount = 0,
                     error = result.exceptionOrNull()?.message ?: "Hiba a betöltéskor"
                 )
             }
@@ -94,6 +101,10 @@ class HomeViewModel @Inject constructor(
             }
             .sortedBy { it.leagueName }
 
-        _uiState.value = _uiState.value.copy(leagueGroups = groups)
+        _uiState.value = _uiState.value.copy(
+            leagueGroups = groups,
+            filteredMatchCount = filtered.size,
+            totalMatchCount = allMatches.size
+        )
     }
 }
