@@ -13,8 +13,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.DarkMode
-import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -83,7 +81,6 @@ fun SettingsScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp)
         ) {
-            // ===== TÉMA =====
             Text(
                 text = "Megjelenés",
                 color = c.textPrimary,
@@ -95,18 +92,10 @@ fun SettingsScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = if (isDark) Icons.Default.DarkMode else Icons.Default.LightMode,
-                        contentDescription = null,
-                        tint = c.green
-                    )
-                    Spacer(modifier = Modifier.padding(start = 8.dp))
-                    Text(
-                        text = if (isDark) "Sötét mód" else "Világos mód",
-                        color = c.textPrimary
-                    )
-                }
+                Text(
+                    text = if (isDark) "Sötét mód" else "Világos mód",
+                    color = c.textPrimary
+                )
                 Switch(
                     checked = isDark,
                     onCheckedChange = { themeViewModel.setDarkTheme(it) },
@@ -119,7 +108,6 @@ fun SettingsScreen(
 
             Spacer(modifier = Modifier.height(28.dp))
 
-            // ===== Highlightly =====
             Text(
                 text = "Highlightly API kulcs",
                 color = c.textPrimary,
@@ -144,7 +132,6 @@ fun SettingsScreen(
 
             Spacer(modifier = Modifier.height(28.dp))
 
-            // ===== LLM =====
             Text(
                 text = "LLM API (AI elemzés)",
                 color = c.textPrimary,
