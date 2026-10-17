@@ -13,10 +13,9 @@ interface HighlightlyApi {
 
     @GET("matches")
     suspend fun getMatches(
-        @Query("date") date: String? = null,
-        @Query("leagueId") leagueId: Int? = null,
+        @Query("date") date: String,
         @Query("timezone") timezone: String = "Europe/Budapest",
-        @Query("limit") limit: Int = 40,
+        @Query("limit") limit: Int = 100,
         @Query("offset") offset: Int = 0
     ): MatchesResponse
 
@@ -25,20 +24,18 @@ interface HighlightlyApi {
         @Path("id") id: Long
     ): List<MatchDetailResponse>
 
-    @GET("statistics/{matchId}")
+    @GET("matches/{id}/statistics")
     suspend fun getStatistics(
-        @Path("matchId") matchId: Long
+        @Path("id") id: Long
     ): StatisticsResponse
 
-    @GET("lineups/{matchId}")
+    @GET("matches/{id}/lineups")
     suspend fun getLineups(
-        @Path("matchId") matchId: Long
+        @Path("id") id: Long
     ): LineupsResponse
 
-    @GET("highlights")
+    @GET("matches/{id}/highlights")
     suspend fun getHighlights(
-        @Query("matchId") matchId: Long? = null,
-        @Query("date") date: String? = null,
-        @Query("limit") limit: Int = 20
+        @Path("id") matchId: Long
     ): HighlightsResponse
 }
