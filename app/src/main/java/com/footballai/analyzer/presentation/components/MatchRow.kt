@@ -18,7 +18,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -27,12 +26,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.footballai.analyzer.domain.model.Match
-import com.footballai.analyzer.ui.theme.DarkBackground
-import com.footballai.analyzer.ui.theme.DarkCard
-import com.footballai.analyzer.ui.theme.GreenPrimary
-import com.footballai.analyzer.ui.theme.RedLive
-import com.footballai.analyzer.ui.theme.TextPrimary
-import com.footballai.analyzer.ui.theme.TextSecondary
+import com.footballai.analyzer.ui.theme.LocalAppColors
 import java.time.OffsetDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -42,8 +36,9 @@ fun MatchRow(
     match: Match,
     onClick: () -> Unit
 ) {
+    val c = LocalAppColors.current
     val isLive = match.isLive
-    val rowBg = if (isLive) Color(0xFF1A2E1A) else DarkBackground
+    val rowBg = if (isLive) c.liveRow else c.background
 
     Row(
         modifier = Modifier
@@ -53,7 +48,6 @@ fun MatchRow(
             .padding(horizontal = 10.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Idő / státusz
         Box(
             modifier = Modifier.width(42.dp),
             contentAlignment = Alignment.Center
@@ -65,28 +59,24 @@ fun MatchRow(
                             modifier = Modifier
                                 .size(6.dp)
                                 .clip(CircleShape)
-                                .background(RedLive)
+                                .background(c.redLive)
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = (match.minute?.toString() ?: "?") + "'",
-                            color = RedLive,
+                            color = c.redLive,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold
                         )
                     }
                 }
                 isFinished(match.status) -> {
-                    Text(
-                        text = "Vége",
-                        color = TextSecondary,
-                        fontSize = 11.sp
-                    )
+                    Text(text = "Vége", color = c.textSecondary, fontSize = 11.sp)
                 }
                 else -> {
                     Text(
                         text = formatBudapestTime(match.date),
-                        color = TextSecondary,
+                        color = c.textSecondary,
                         fontSize = 12.sp
                     )
                 }
@@ -95,7 +85,6 @@ fun MatchRow(
 
         Spacer(modifier = Modifier.width(6.dp))
 
-        // Hazai
         TeamCell(
             name = match.homeTeamName,
             logo = match.homeTeamLogo,
@@ -104,15 +93,14 @@ fun MatchRow(
             bold = isWinner(match, home = true)
         )
 
-        // Eredmény
         Box(
             modifier = Modifier.width(52.dp),
             contentAlignment = Alignment.Center
         ) {
             val scoreColor = when {
-                isLive -> GreenPrimary
-                isFinished(match.status) -> TextPrimary
-                else -> TextSecondary
+                isLive -> c.green
+                isFinished(match.status) -> c.textPrimary
+                else -> c.textSecondary
             }
             Text(
                 text = formatScore(match.score),
@@ -123,7 +111,6 @@ fun MatchRow(
             )
         }
 
-        // Vendég
         TeamCell(
             name = match.awayTeamName,
             logo = match.awayTeamLogo,
@@ -142,6 +129,7 @@ private fun TeamCell(
     alignEnd: Boolean,
     bold: Boolean
 ) {
+    val c = LocalAppColors.current
     Row(
         modifier = modifier,
         horizontalArrangement = if (alignEnd) Arrangement.End else Arrangement.Start,
@@ -153,7 +141,7 @@ private fun TeamCell(
         }
         Text(
             text = name,
-            color = if (bold) GreenPrimary else TextPrimary,
+            color = if (bold) c.green else c.textPrimary,
             fontSize = 13.sp,
             fontWeight = if (bold) FontWeight.Bold else FontWeight.Normal,
             maxLines = 1,
@@ -169,6 +157,7 @@ private fun TeamCell(
 
 @Composable
 private fun TeamLogo(url: String?) {
+    val c = LocalAppColors.current
     if (!url.isNullOrBlank()) {
         AsyncImage(
             model = url,
@@ -181,7 +170,7 @@ private fun TeamLogo(url: String?) {
             modifier = Modifier
                 .size(20.dp)
                 .clip(CircleShape)
-                .background(DarkCard)
+                .background(c.card)
         )
     }
 }
