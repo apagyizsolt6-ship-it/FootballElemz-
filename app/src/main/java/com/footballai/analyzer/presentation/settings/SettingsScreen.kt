@@ -1,6 +1,8 @@
 package com.footballai.analyzer.presentation.settings
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -11,6 +13,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -19,30 +23,34 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.footballai.analyzer.ui.theme.DarkBackground
-import com.footballai.analyzer.ui.theme.DarkCard
-import com.footballai.analyzer.ui.theme.GreenPrimary
-import com.footballai.analyzer.ui.theme.TextPrimary
-import com.footballai.analyzer.ui.theme.TextSecondary
+import com.footballai.analyzer.presentation.ThemeViewModel
+import com.footballai.analyzer.ui.theme.LocalAppColors
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     onBack: () -> Unit,
-    viewModel: SettingsViewModel = hiltViewModel()
+    viewModel: SettingsViewModel = hiltViewModel(),
+    themeViewModel: ThemeViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val isDark by themeViewModel.isDarkTheme.collectAsState()
+    val c = LocalAppColors.current
 
     Scaffold(
         topBar = {
@@ -51,7 +59,7 @@ fun SettingsScreen(
                     Text(
                         text = "Beállítások",
                         fontWeight = FontWeight.Bold,
-                        color = TextPrimary
+                        color = c.textPrimary
                     )
                 },
                 navigationIcon = {
@@ -59,14 +67,14 @@ fun SettingsScreen(
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Vissza",
-                            tint = TextPrimary
+                            tint = c.textPrimary
                         )
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = DarkBackground)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = c.background)
             )
         },
-        containerColor = DarkBackground
+        containerColor = c.background
     ) { padding ->
         Column(
             modifier = Modifier
@@ -75,16 +83,52 @@ fun SettingsScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp)
         ) {
+            // ===== TÉMA =====
+            Text(
+                text = "Megjelenés",
+                color = c.textPrimary,
+                fontWeight = FontWeight.SemiBold
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = if (isDark) Icons.Default.DarkMode else Icons.Default.LightMode,
+                        contentDescription = null,
+                        tint = c.green
+                    )
+                    Spacer(modifier = Modifier.padding(start = 8.dp))
+                    Text(
+                        text = if (isDark) "Sötét mód" else "Világos mód",
+                        color = c.textPrimary
+                    )
+                }
+                Switch(
+                    checked = isDark,
+                    onCheckedChange = { themeViewModel.setDarkTheme(it) },
+                    colors = SwitchDefaults.colors(
+                        checkedTrackColor = c.green,
+                        checkedThumbColor = Color.White
+                    )
+                )
+            }
+
+            Spacer(modifier = Modifier.height(28.dp))
+
             // ===== Highlightly =====
             Text(
                 text = "Highlightly API kulcs",
-                color = TextPrimary,
+                color = c.textPrimary,
                 fontWeight = FontWeight.SemiBold
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = "Meccsek, statisztikák, felállások adatai. Csak a telefonodon tárolódik.",
-                color = TextSecondary,
+                text = "Meccsek, statisztikák, felállások. Csak a telefonodon tárolódik.",
+                color = c.textSecondary,
                 fontSize = 12.sp
             )
             Spacer(modifier = Modifier.height(8.dp))
@@ -95,7 +139,7 @@ fun SettingsScreen(
                 placeholder = { Text("Highlightly API kulcs") },
                 singleLine = true,
                 shape = RoundedCornerShape(12.dp),
-                colors = fieldColors()
+                colors = fieldColors(c)
             )
 
             Spacer(modifier = Modifier.height(28.dp))
@@ -103,18 +147,18 @@ fun SettingsScreen(
             // ===== LLM =====
             Text(
                 text = "LLM API (AI elemzés)",
-                color = TextPrimary,
+                color = c.textPrimary,
                 fontWeight = FontWeight.SemiBold
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = "OpenAI, xAI Grok vagy más OpenAI-kompatibilis szolgáltató.",
-                color = TextSecondary,
+                color = c.textSecondary,
                 fontSize = 12.sp
             )
             Spacer(modifier = Modifier.height(12.dp))
 
-            Text(text = "API kulcs", color = TextSecondary, fontSize = 12.sp)
+            Text(text = "API kulcs", color = c.textSecondary, fontSize = 12.sp)
             Spacer(modifier = Modifier.height(4.dp))
             OutlinedTextField(
                 value = uiState.llmKey,
@@ -123,39 +167,39 @@ fun SettingsScreen(
                 placeholder = { Text("sk-... vagy xai-...") },
                 singleLine = true,
                 shape = RoundedCornerShape(12.dp),
-                colors = fieldColors()
+                colors = fieldColors(c)
             )
 
             Spacer(modifier = Modifier.height(12.dp))
-            Text(text = "Base URL", color = TextSecondary, fontSize = 12.sp)
+            Text(text = "Base URL", color = c.textSecondary, fontSize = 12.sp)
             Spacer(modifier = Modifier.height(4.dp))
             OutlinedTextField(
                 value = uiState.llmBaseUrl,
                 onValueChange = viewModel::onLlmBaseUrlChange,
                 modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text("https://api.openai.com/v1/") },
+                placeholder = { Text("https://api.x.ai/v1/") },
                 singleLine = true,
                 shape = RoundedCornerShape(12.dp),
-                colors = fieldColors()
+                colors = fieldColors(c)
             )
 
             Spacer(modifier = Modifier.height(12.dp))
-            Text(text = "Modell", color = TextSecondary, fontSize = 12.sp)
+            Text(text = "Modell", color = c.textSecondary, fontSize = 12.sp)
             Spacer(modifier = Modifier.height(4.dp))
             OutlinedTextField(
                 value = uiState.llmModel,
                 onValueChange = viewModel::onLlmModelChange,
                 modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text("gpt-4o-mini / grok-2") },
+                placeholder = { Text("grok-4.7 / gpt-4o-mini") },
                 singleLine = true,
                 shape = RoundedCornerShape(12.dp),
-                colors = fieldColors()
+                colors = fieldColors(c)
             )
 
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Példák:\n• OpenAI → https://api.openai.com/v1/ + gpt-4o-mini\n• xAI Grok → https://api.x.ai/v1/ + grok-2",
-                color = TextSecondary,
+                text = "Példák:\n• xAI Grok → https://api.x.ai/v1/ + grok-4.7\n• OpenAI → https://api.openai.com/v1/ + gpt-4o-mini",
+                color = c.textSecondary,
                 fontSize = 11.sp,
                 lineHeight = 16.sp
             )
@@ -169,8 +213,8 @@ fun SettingsScreen(
                     .height(52.dp),
                 shape = RoundedCornerShape(14.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = GreenPrimary,
-                    contentColor = DarkBackground
+                    containerColor = c.green,
+                    contentColor = if (c.isDark) c.background else Color.White
                 )
             ) {
                 Text("Mentés", fontWeight = FontWeight.Bold)
@@ -180,7 +224,7 @@ fun SettingsScreen(
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
                     text = uiState.message ?: "",
-                    color = GreenPrimary,
+                    color = c.green,
                     fontWeight = FontWeight.Medium
                 )
             }
@@ -191,12 +235,15 @@ fun SettingsScreen(
 }
 
 @Composable
-private fun fieldColors() = OutlinedTextFieldDefaults.colors(
-    focusedBorderColor = GreenPrimary,
-    unfocusedBorderColor = DarkCard,
-    focusedTextColor = TextPrimary,
-    unfocusedTextColor = TextPrimary,
-    cursorColor = GreenPrimary,
-    focusedPlaceholderColor = TextSecondary,
-    unfocusedPlaceholderColor = TextSecondary
-)
+private fun fieldColors(c: com.footballai.analyzer.ui.theme.AppColors) =
+    OutlinedTextFieldDefaults.colors(
+        focusedBorderColor = c.green,
+        unfocusedBorderColor = c.card,
+        focusedTextColor = c.textPrimary,
+        unfocusedTextColor = c.textPrimary,
+        cursorColor = c.green,
+        focusedPlaceholderColor = c.textSecondary,
+        unfocusedPlaceholderColor = c.textSecondary,
+        focusedContainerColor = c.surface,
+        unfocusedContainerColor = c.surface
+    )

@@ -13,8 +13,8 @@ import javax.inject.Inject
 data class SettingsUiState(
     val apiKey: String = "",
     val llmKey: String = "",
-    val llmBaseUrl: String = "https://api.openai.com/v1/",
-    val llmModel: String = "gpt-4o-mini",
+    val llmBaseUrl: String = "https://api.x.ai/v1/",
+    val llmModel: String = "grok-4.7",
     val message: String? = null
 )
 
