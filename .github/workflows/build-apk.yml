@@ -2,7 +2,7 @@ name: Build FociElemzo APK
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ main ]
   workflow_dispatch:
 
 jobs:
@@ -11,40 +11,38 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
-          java-version: '17'
+          distribution: temurin
+          java-version: "17"
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Create gradle.properties
-        run: |
-          echo "org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8" > gradle.properties
-          echo "android.useAndroidX=true" >> gradle.properties
-          echo "kotlin.code.style=official" >> gradle.properties
-          echo "android.nonTransitiveRClass=true" >> gradle.properties
+      - name: Make gradlew executable
+        run: chmod +x gradlew || true
 
-      - name: Make sure gradlew exists
+      - name: Bootstrap Gradle Wrapper (if missing)
         run: |
           if [ ! -f gradlew ]; then
             gradle wrapper --gradle-version 8.9
+            chmod +x gradlew
           fi
-          chmod +x gradlew
 
       - name: Build Debug APK
         run: ./gradlew assembleDebug --no-daemon --stacktrace
-        env:
-          HIGHLIGHTLY_API_KEY: ${{ secrets.HIGHLIGHTLY_API_KEY }}
 
-      - name: Upload APK
+      - name: List APK files
+        run: find app/build/outputs -name "*.apk" -type f || true
+
+      - name: Upload Debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: FociElemzo-APK
+          name: FociElemzo-debug
           path: app/build/outputs/apk/debug/*.apk
-          retention-days: 7
+          if-no-files-found: error
+          retention-days: 14
