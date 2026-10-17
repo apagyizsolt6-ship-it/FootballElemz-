@@ -58,8 +58,10 @@ class MainActivity : ComponentActivity() {
                             arguments = listOf(
                                 navArgument("matchId") { type = NavType.LongType }
                             )
-                        ) {
+                        ) { backStackEntry ->
+                            val matchId = backStackEntry.arguments?.getLong("matchId") ?: 0L
                             MatchDetailScreen(
+                                matchId = matchId,
                                 onBack = { navController.popBackStack() }
                             )
                         }
