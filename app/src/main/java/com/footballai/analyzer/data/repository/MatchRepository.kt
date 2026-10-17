@@ -22,12 +22,27 @@ class MatchRepository @Inject constructor(
     suspend fun getMatchesForDate(date: LocalDate): Result<List<Match>> {
         return try {
             val dateStr = date.format(DateTimeFormatter.ISO_LOCAL_DATE)
-            val response = api.getMatches(
-                date = dateStr,
-                timezone = "Europe/Budapest",
-                limit = 100
-            )
-            Result.success(response.data.map { it.toDomain() })
+            val allMatches = mutableListOf<MatchDto>()
+            var offset = 0
+            val pageSize = 100
+            val maxPages = 10
+
+            repeat(maxPages) {
+                val response = api.getMatches(
+                    date = dateStr,
+                    timezone = "Europe/Budapest",
+                    limit = pageSize,
+                    offset = offset
+                )
+                val page = response.data
+                if (page.isEmpty()) return@repeat
+                allMatches.addAll(page)
+                val total = response.pagination?.totalCount ?: page.size
+                offset += pageSize
+                if (offset >= total || page.size < pageSize) return@repeat
+            }
+
+            Result.success(allMatches.map { it.toDomain() })
         } catch (e: Exception) {
             Result.failure(e)
         }
