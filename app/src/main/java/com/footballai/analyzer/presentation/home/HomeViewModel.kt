@@ -150,11 +150,12 @@ class HomeViewModel @Inject constructor(
                     list
                 }
             }
-            // 1) kedvencek (pinned), 2) top 5, 3) ABC
             .sortedWith(
                 compareByDescending<LeagueGroup> { it.isPinned }
                     .thenBy { LeagueTranslator.topLeaguePriority(it.leagueName) }
-                    .thenBy { it.leagueName }
+                    .thenComparator { a, b ->
+                        LeagueTranslator.compareHeaders(a.leagueName, b.leagueName)
+                    }
             )
 
         _uiState.update {
