@@ -22,8 +22,10 @@ data class LeagueGroup(
 
 data class HomeUiState(
     val isLoading: Boolean = false,
+    val isRefreshing: Boolean = false,
     val selectedDate: LocalDate = LocalDate.now(),
     val filter: MatchFilter = MatchFilter.ALL,
+    val onlyTopLeagues: Boolean = false,
     val leagueGroups: List<LeagueGroup> = emptyList(),
     val totalMatchCount: Int = 0,
     val filteredMatchCount: Int = 0,
@@ -55,20 +57,33 @@ class HomeViewModel @Inject constructor(
         applyFilterAndGroup()
     }
 
-    fun loadMatches() {
+    fun toggleTopLeagues() {
+        _uiState.value = _uiState.value.copy(
+            onlyTopLeagues = !_uiState.value.onlyTopLeagues
+        )
+        applyFilterAndGroup()
+    }
+
+    fun loadMatches(isRefresh: Boolean = false) {
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+            _uiState.value = _uiState.value.copy(
+                isLoading = !isRefresh,
+                isRefreshing = isRefresh,
+                error = null
+            )
             val result = repository.getMatchesForDate(_uiState.value.selectedDate)
             if (result.isSuccess) {
                 allMatches = result.getOrDefault(emptyList())
                 applyFilterAndGroup()
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
+                    isRefreshing = false,
                     totalMatchCount = allMatches.size
                 )
             } else {
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
+                    isRefreshing = false,
                     totalMatchCount = 0,
                     filteredMatchCount = 0,
                     error = result.exceptionOrNull()?.message ?: "Hiba a betöltéskor"
@@ -78,7 +93,7 @@ class HomeViewModel @Inject constructor(
     }
 
     private fun applyFilterAndGroup() {
-        val filtered = when (_uiState.value.filter) {
+        var filtered = when (_uiState.value.filter) {
             MatchFilter.ALL -> allMatches
             MatchFilter.LIVE -> allMatches.filter { it.isLive }
             MatchFilter.FINISHED -> allMatches.filter {
@@ -99,11 +114,22 @@ class HomeViewModel @Inject constructor(
             .map { (header, matches) ->
                 LeagueGroup(header, matches.sortedBy { it.date })
             }
-            .sortedBy { it.leagueName }
+            .let { list ->
+                if (_uiState.value.onlyTopLeagues) {
+                    list.filter { LeagueTranslator.isTopLeague(it.leagueName) }
+                } else {
+                    list
+                }
+            }
+            // Top 5 mindig elöl, utána ABC
+            .sortedWith(
+                compareBy<LeagueGroup> { LeagueTranslator.topLeaguePriority(it.leagueName) }
+                    .thenBy { it.leagueName }
+            )
 
         _uiState.value = _uiState.value.copy(
             leagueGroups = groups,
-            filteredMatchCount = filtered.size,
+            filteredMatchCount = groups.sumOf { it.matches.size },
             totalMatchCount = allMatches.size
         )
     }

@@ -28,6 +28,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -72,7 +73,7 @@ fun HomeScreen(
                     )
                 },
                 actions = {
-                    IconButton(onClick = { viewModel.loadMatches() }) {
+                    IconButton(onClick = { viewModel.loadMatches(isRefresh = true) }) {
                         Icon(
                             imageVector = Icons.Default.Refresh,
                             contentDescription = "Frissítés",
@@ -97,7 +98,7 @@ fun HomeScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            // NAPTÁR SÁV
+            // NAPTÁR
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -127,51 +128,57 @@ fun HomeScreen(
                 }
             }
 
-            // SZŰRŐ TABOK
+            // SZŰRŐK
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState())
                     .padding(horizontal = 12.dp, vertical = 4.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 FilterChip(
                     text = "Összes",
                     selected = uiState.filter == MatchFilter.ALL
-                ) {
-                    viewModel.setFilter(MatchFilter.ALL)
-                }
+                ) { viewModel.setFilter(MatchFilter.ALL) }
+
                 FilterChip(
                     text = "ÉLŐ",
                     selected = uiState.filter == MatchFilter.LIVE,
                     isLive = true
-                ) {
-                    viewModel.setFilter(MatchFilter.LIVE)
-                }
+                ) { viewModel.setFilter(MatchFilter.LIVE) }
+
                 FilterChip(
                     text = "Vége",
                     selected = uiState.filter == MatchFilter.FINISHED
-                ) {
-                    viewModel.setFilter(MatchFilter.FINISHED)
-                }
+                ) { viewModel.setFilter(MatchFilter.FINISHED) }
+
                 FilterChip(
                     text = "Hátralévő",
                     selected = uiState.filter == MatchFilter.UPCOMING
-                ) {
-                    viewModel.setFilter(MatchFilter.UPCOMING)
-                }
+                ) { viewModel.setFilter(MatchFilter.UPCOMING) }
+
+                FilterChip(
+                    text = "Top 5",
+                    selected = uiState.onlyTopLeagues
+                ) { viewModel.toggleTopLeagues() }
             }
 
-            // MECCSSZÁMLÁLÓ
+            // SZÁMLÁLÓ
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 6.dp),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                val countText = if (uiState.filter == MatchFilter.ALL) {
-                    "${uiState.totalMatchCount} meccs"
-                } else {
-                    "${uiState.filteredMatchCount} / ${uiState.totalMatchCount} meccs"
+                val countText = when {
+                    uiState.onlyTopLeagues && uiState.filter != MatchFilter.ALL ->
+                        "${uiState.filteredMatchCount} / ${uiState.totalMatchCount} meccs (Top 5)"
+                    uiState.onlyTopLeagues ->
+                        "${uiState.filteredMatchCount} meccs (Top 5)"
+                    uiState.filter != MatchFilter.ALL ->
+                        "${uiState.filteredMatchCount} / ${uiState.totalMatchCount} meccs"
+                    else ->
+                        "${uiState.totalMatchCount} meccs"
                 }
                 Text(
                     text = countText,
@@ -179,7 +186,7 @@ fun HomeScreen(
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Medium
                 )
-                if (uiState.isLoading) {
+                if (uiState.isLoading || uiState.isRefreshing) {
                     Text(
                         text = "Betöltés...",
                         color = GreenPrimary,
@@ -190,63 +197,68 @@ fun HomeScreen(
 
             Spacer(modifier = Modifier.height(2.dp))
 
-            when {
-                uiState.isLoading && uiState.leagueGroups.isEmpty() -> {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator(color = GreenPrimary)
+            PullToRefreshBox(
+                isRefreshing = uiState.isRefreshing,
+                onRefresh = { viewModel.loadMatches(isRefresh = true) },
+                modifier = Modifier.fillMaxSize()
+            ) {
+                when {
+                    uiState.isLoading && uiState.leagueGroups.isEmpty() -> {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(color = GreenPrimary)
+                        }
                     }
-                }
 
-                uiState.error != null && uiState.leagueGroups.isEmpty() -> {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = uiState.error ?: "",
-                            color = TextSecondary
-                        )
+                    uiState.error != null && uiState.leagueGroups.isEmpty() -> {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(text = uiState.error ?: "", color = TextSecondary)
+                        }
                     }
-                }
 
-                uiState.leagueGroups.isEmpty() -> {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "Nincs meccs ezen a napon",
-                            color = TextSecondary
-                        )
+                    uiState.leagueGroups.isEmpty() -> {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(text = "Nincs meccs ezen a napon", color = TextSecondary)
+                        }
                     }
-                }
 
-                else -> {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(bottom = 16.dp)
-                    ) {
-                        uiState.leagueGroups.forEach { group ->
-                            item {
-                                Text(
-                                    text = group.leagueName,
-                                    color = TextSecondary,
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .background(DarkCard)
-                                        .padding(horizontal = 12.dp, vertical = 8.dp)
-                                )
-                            }
-                            items(group.matches, key = { it.id }) { match ->
-                                MatchRow(
-                                    match = match,
-                                    onClick = { onMatchClick(match.id) }
-                                )
+                    else -> {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(bottom = 16.dp)
+                        ) {
+                            uiState.leagueGroups.forEach { group ->
+                                item {
+                                    val isTop = com.footballai.analyzer.util.LeagueTranslator
+                                        .isTopLeague(group.leagueName)
+                                    Text(
+                                        text = group.leagueName,
+                                        color = if (isTop) GreenPrimary else TextSecondary,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .background(
+                                                if (isTop) DarkCard.copy(alpha = 0.9f)
+                                                else DarkCard
+                                            )
+                                            .padding(horizontal = 12.dp, vertical = 8.dp)
+                                    )
+                                }
+                                items(group.matches, key = { it.id }) { match ->
+                                    MatchRow(
+                                        match = match,
+                                        onClick = { onMatchClick(match.id) }
+                                    )
+                                }
                             }
                         }
                     }
