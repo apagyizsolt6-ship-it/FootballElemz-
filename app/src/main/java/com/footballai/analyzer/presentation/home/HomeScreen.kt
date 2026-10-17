@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -20,6 +21,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.outlined.StarOutline
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -41,12 +44,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.footballai.analyzer.presentation.components.MatchRow
-import com.footballai.analyzer.ui.theme.DarkBackground
-import com.footballai.analyzer.ui.theme.DarkCard
-import com.footballai.analyzer.ui.theme.GreenPrimary
-import com.footballai.analyzer.ui.theme.RedLive
-import com.footballai.analyzer.ui.theme.TextPrimary
-import com.footballai.analyzer.ui.theme.TextSecondary
+import com.footballai.analyzer.ui.theme.LocalAppColors
+import com.footballai.analyzer.util.LeagueTranslator
 import java.time.LocalDate
 import java.time.format.TextStyle
 import java.util.Locale
@@ -59,6 +58,7 @@ fun HomeScreen(
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val c = LocalAppColors.current
     val today = LocalDate.now()
     val dates = (-3..7).map { today.plusDays(it.toLong()) }
 
@@ -69,7 +69,7 @@ fun HomeScreen(
                     Text(
                         text = "FociElemző",
                         fontWeight = FontWeight.Bold,
-                        color = TextPrimary
+                        color = c.textPrimary
                     )
                 },
                 actions = {
@@ -77,21 +77,21 @@ fun HomeScreen(
                         Icon(
                             imageVector = Icons.Default.Refresh,
                             contentDescription = "Frissítés",
-                            tint = GreenPrimary
+                            tint = c.green
                         )
                     }
                     IconButton(onClick = onSettingsClick) {
                         Icon(
                             imageVector = Icons.Default.Settings,
                             contentDescription = "Beállítások",
-                            tint = GreenPrimary
+                            tint = c.green
                         )
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = DarkBackground)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = c.background)
             )
         },
-        containerColor = DarkBackground
+        containerColor = c.background
     ) { padding ->
         Column(
             modifier = Modifier
@@ -108,18 +108,19 @@ fun HomeScreen(
             ) {
                 dates.forEach { date ->
                     val isSelected = date == uiState.selectedDate
-                    val label = buildDateLabel(date, today)
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(10.dp))
-                            .background(if (isSelected) GreenPrimary else DarkCard)
+                            .background(if (isSelected) c.green else c.card)
                             .clickable { viewModel.selectDate(date) }
                             .padding(horizontal = 14.dp, vertical = 8.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = label,
-                            color = if (isSelected) DarkBackground else TextPrimary,
+                            text = buildDateLabel(date, today),
+                            color = if (isSelected) {
+                                if (c.isDark) c.background else androidx.compose.ui.graphics.Color.White
+                            } else c.textPrimary,
                             fontSize = 12.sp,
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
                             textAlign = TextAlign.Center
@@ -136,31 +137,21 @@ fun HomeScreen(
                     .padding(horizontal = 12.dp, vertical = 4.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                FilterChip(
-                    text = "Összes",
-                    selected = uiState.filter == MatchFilter.ALL
-                ) { viewModel.setFilter(MatchFilter.ALL) }
-
-                FilterChip(
-                    text = "ÉLŐ",
-                    selected = uiState.filter == MatchFilter.LIVE,
-                    isLive = true
-                ) { viewModel.setFilter(MatchFilter.LIVE) }
-
-                FilterChip(
-                    text = "Vége",
-                    selected = uiState.filter == MatchFilter.FINISHED
-                ) { viewModel.setFilter(MatchFilter.FINISHED) }
-
-                FilterChip(
-                    text = "Hátralévő",
-                    selected = uiState.filter == MatchFilter.UPCOMING
-                ) { viewModel.setFilter(MatchFilter.UPCOMING) }
-
-                FilterChip(
-                    text = "Top 5",
-                    selected = uiState.onlyTopLeagues
-                ) { viewModel.toggleTopLeagues() }
+                FilterChip("Összes", uiState.filter == MatchFilter.ALL) {
+                    viewModel.setFilter(MatchFilter.ALL)
+                }
+                FilterChip("ÉLŐ", uiState.filter == MatchFilter.LIVE, isLive = true) {
+                    viewModel.setFilter(MatchFilter.LIVE)
+                }
+                FilterChip("Vége", uiState.filter == MatchFilter.FINISHED) {
+                    viewModel.setFilter(MatchFilter.FINISHED)
+                }
+                FilterChip("Hátralévő", uiState.filter == MatchFilter.UPCOMING) {
+                    viewModel.setFilter(MatchFilter.UPCOMING)
+                }
+                FilterChip("Top 5", uiState.onlyTopLeagues) {
+                    viewModel.toggleTopLeagues()
+                }
             }
 
             // SZÁMLÁLÓ
@@ -171,31 +162,18 @@ fun HomeScreen(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 val countText = when {
-                    uiState.onlyTopLeagues && uiState.filter != MatchFilter.ALL ->
-                        "${uiState.filteredMatchCount} / ${uiState.totalMatchCount} meccs (Top 5)"
                     uiState.onlyTopLeagues ->
-                        "${uiState.filteredMatchCount} meccs (Top 5)"
+                        "${uiState.filteredMatchCount} meccs (Top / kedvenc)"
                     uiState.filter != MatchFilter.ALL ->
                         "${uiState.filteredMatchCount} / ${uiState.totalMatchCount} meccs"
                     else ->
                         "${uiState.totalMatchCount} meccs"
                 }
-                Text(
-                    text = countText,
-                    color = TextSecondary,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Medium
-                )
+                Text(text = countText, color = c.textSecondary, fontSize = 13.sp)
                 if (uiState.isLoading || uiState.isRefreshing) {
-                    Text(
-                        text = "Betöltés...",
-                        color = GreenPrimary,
-                        fontSize = 13.sp
-                    )
+                    Text(text = "Betöltés...", color = c.green, fontSize = 13.sp)
                 }
             }
-
-            Spacer(modifier = Modifier.height(2.dp))
 
             PullToRefreshBox(
                 isRefreshing = uiState.isRefreshing,
@@ -204,32 +182,20 @@ fun HomeScreen(
             ) {
                 when {
                     uiState.isLoading && uiState.leagueGroups.isEmpty() -> {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            CircularProgressIndicator(color = GreenPrimary)
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator(color = c.green)
                         }
                     }
-
                     uiState.error != null && uiState.leagueGroups.isEmpty() -> {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(text = uiState.error ?: "", color = TextSecondary)
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text(text = uiState.error ?: "", color = c.textSecondary)
                         }
                     }
-
                     uiState.leagueGroups.isEmpty() -> {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(text = "Nincs meccs ezen a napon", color = TextSecondary)
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text(text = "Nincs meccs ezen a napon", color = c.textSecondary)
                         }
                     }
-
                     else -> {
                         LazyColumn(
                             modifier = Modifier.fillMaxSize(),
@@ -237,20 +203,11 @@ fun HomeScreen(
                         ) {
                             uiState.leagueGroups.forEach { group ->
                                 item {
-                                    val isTop = com.footballai.analyzer.util.LeagueTranslator
-                                        .isTopLeague(group.leagueName)
-                                    Text(
-                                        text = group.leagueName,
-                                        color = if (isTop) GreenPrimary else TextSecondary,
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .background(
-                                                if (isTop) DarkCard.copy(alpha = 0.9f)
-                                                else DarkCard
-                                            )
-                                            .padding(horizontal = 12.dp, vertical = 8.dp)
+                                    LeagueHeader(
+                                        title = group.leagueName,
+                                        isPinned = group.isPinned,
+                                        isTop = LeagueTranslator.isTopLeague(group.leagueName),
+                                        onTogglePin = { viewModel.togglePin(group.leagueName) }
                                     )
                                 }
                                 items(group.matches, key = { it.id }) { match ->
@@ -268,15 +225,43 @@ fun HomeScreen(
     }
 }
 
-private fun buildDateLabel(date: LocalDate, today: LocalDate): String {
-    return when (date) {
-        today.minusDays(1) -> "Tegnap"
-        today -> "Ma"
-        today.plusDays(1) -> "Holnap"
-        else -> {
-            val dayName = date.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale("hu", "HU"))
-            date.dayOfMonth.toString() + "/" + date.monthValue.toString() + " " + dayName
+@Composable
+private fun LeagueHeader(
+    title: String,
+    isPinned: Boolean,
+    isTop: Boolean,
+    onTogglePin: () -> Unit
+) {
+    val c = LocalAppColors.current
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(c.card)
+            .padding(horizontal = 8.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        IconButton(
+            onClick = onTogglePin,
+            modifier = Modifier.size(32.dp)
+        ) {
+            Icon(
+                imageVector = if (isPinned) Icons.Filled.Star else Icons.Outlined.StarOutline,
+                contentDescription = if (isPinned) "Kedvenc levétel" else "Kedvenc",
+                tint = if (isPinned) c.pinGold else c.textSecondary,
+                modifier = Modifier.size(18.dp)
+            )
         }
+        Text(
+            text = title,
+            color = when {
+                isPinned -> c.pinGold
+                isTop -> c.green
+                else -> c.textSecondary
+            },
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.weight(1f)
+        )
     }
 }
 
@@ -287,14 +272,15 @@ private fun FilterChip(
     isLive: Boolean = false,
     onClick: () -> Unit
 ) {
+    val c = LocalAppColors.current
     Box(
         modifier = Modifier
             .clip(RoundedCornerShape(16.dp))
             .background(
                 when {
-                    selected && isLive -> RedLive
-                    selected -> GreenPrimary
-                    else -> DarkCard
+                    selected && isLive -> c.redLive
+                    selected -> c.green
+                    else -> c.card
                 }
             )
             .clickable { onClick() }
@@ -302,9 +288,23 @@ private fun FilterChip(
     ) {
         Text(
             text = text,
-            color = if (selected) DarkBackground else TextPrimary,
+            color = if (selected) {
+                if (c.isDark) c.background else androidx.compose.ui.graphics.Color.White
+            } else c.textPrimary,
             fontSize = 13.sp,
             fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
         )
+    }
+}
+
+private fun buildDateLabel(date: LocalDate, today: LocalDate): String {
+    return when (date) {
+        today.minusDays(1) -> "Tegnap"
+        today -> "Ma"
+        today.plusDays(1) -> "Holnap"
+        else -> {
+            val dayName = date.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale("hu", "HU"))
+            date.dayOfMonth.toString() + "/" + date.monthValue.toString() + " " + dayName
+        }
     }
 }
