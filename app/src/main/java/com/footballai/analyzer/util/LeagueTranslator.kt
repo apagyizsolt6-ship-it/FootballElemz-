@@ -1,5 +1,8 @@
 package com.footballai.analyzer.util
 
+import java.text.Collator
+import java.util.Locale
+
 object LeagueTranslator {
 
     private val countryMap = mapOf(
@@ -57,10 +60,18 @@ object LeagueTranslator {
         "First League" to "Első Liga"
     )
 
+    // 1 PL, 2 La Liga, 3 Bundesliga, 4 Serie A, 5 Ligue 1
     private val topLeagueKeys = listOf(
-        "champions league", "uefa champions league", "bajnokok ligája",
-        "premier league", "la liga", "serie a", "bundesliga"
+        "premier league",
+        "la liga",
+        "bundesliga",
+        "serie a",
+        "ligue 1"
     )
+
+    private val collator: Collator = Collator.getInstance(Locale("hu", "HU")).apply {
+        strength = Collator.PRIMARY
+    }
 
     fun translateCountry(name: String?): String {
         if (name.isNullOrBlank()) return ""
@@ -92,4 +103,7 @@ object LeagueTranslator {
     }
 
     fun isTopLeague(header: String): Boolean = topLeaguePriority(header) < 100
+
+    /** Magyar ABC – É, Ö, Ü a helyükön */
+    fun compareHeaders(a: String, b: String): Int = collator.compare(a, b)
 }
