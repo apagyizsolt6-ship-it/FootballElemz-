@@ -36,9 +36,7 @@ object LeagueTranslator {
         "Singapore" to "Szingapúr", "New Zealand" to "Új-Zéland", "Canada" to "Kanada",
         "World" to "Világ", "Europe" to "Európa", "International" to "Nemzetközi",
         "Estonia" to "Észtország", "Latvia" to "Lettország", "Lithuania" to "Litvánia",
-        "Belarus" to "Fehéroroszország", "Moldova" to "Moldova", "Luxembourg" to "Luxemburg",
-        "Andorra" to "Andorra", "San Marino" to "San Marino", "Faroe Islands" to "Feröer",
-        "Gibraltar" to "Gibraltár", "Liechtenstein" to "Liechtenstein"
+        "Belarus" to "Fehéroroszország", "Moldova" to "Moldova", "Luxembourg" to "Luxemburg"
     )
 
     private val leagueMap = mapOf(
@@ -53,34 +51,15 @@ object LeagueTranslator {
         "UEFA Europa League" to "Európa Liga",
         "Conference League" to "Konferencia Liga",
         "UEFA Europa Conference League" to "Konferencia Liga",
-        "FA Cup" to "FA Kupa",
-        "EFL Cup" to "Ligakupa",
-        "Copa del Rey" to "Király Kupa",
-        "Coppa Italia" to "Olasz Kupa",
-        "DFB Pokal" to "Német Kupa",
-        "Coupe de France" to "Francia Kupa",
-        "Eredivisie" to "Eredivisie",
-        "Primeira Liga" to "Primeira Liga",
-        "Süper Lig" to "Süper Lig",
-        "Super Lig" to "Süper Lig",
-        "Championship" to "Championship",
         "NB I" to "NB I",
         "OTP Bank Liga" to "NB I",
-        "Scottish Premiership" to "Skót Premiership",
-        "Pro League" to "Pro League",
-        "First League" to "Első Liga",
-        "Veikkausliiga" to "Veikkausliiga"
+        "Veikkausliiga" to "Veikkausliiga",
+        "First League" to "Első Liga"
     )
 
-    // Top 5 – mindig a lista tetején (sorrend = prioritás)
     private val topLeagueKeys = listOf(
-        "champions league",
-        "uefa champions league",
-        "bajnokok ligája",
-        "premier league",
-        "la liga",
-        "serie a",
-        "bundesliga"
+        "champions league", "uefa champions league", "bajnokok ligája",
+        "premier league", "la liga", "serie a", "bundesliga"
     )
 
     fun translateCountry(name: String?): String {
@@ -104,7 +83,6 @@ object LeagueTranslator {
         }
     }
 
-    /** Kisebb szám = előrébb a listán. Top ligák: 0..4, többi: 100+ */
     fun topLeaguePriority(header: String): Int {
         val h = header.lowercase()
         topLeagueKeys.forEachIndexed { index, key ->
