@@ -4,7 +4,7 @@ import com.footballai.analyzer.data.remote.dto.HighlightsResponse
 import com.footballai.analyzer.data.remote.dto.LineupsResponse
 import com.footballai.analyzer.data.remote.dto.MatchDetailResponse
 import com.footballai.analyzer.data.remote.dto.MatchesResponse
-import com.footballai.analyzer.data.remote.dto.StatisticsResponse
+import com.footballai.analyzer.data.remote.dto.TeamStatisticsDto
 import retrofit2.http.GET
 import retrofit2.http.Path
 import retrofit2.http.Query
@@ -24,18 +24,22 @@ interface HighlightlyApi {
         @Path("id") id: Long
     ): List<MatchDetailResponse>
 
-    @GET("matches/{id}/statistics")
+    /** Highlightly: GET /statistics/{matchId} — lista a válasz */
+    @GET("statistics/{matchId}")
     suspend fun getStatistics(
-        @Path("id") id: Long
-    ): StatisticsResponse
+        @Path("matchId") matchId: Long
+    ): List<TeamStatisticsDto>
 
-    @GET("matches/{id}/lineups")
+    /** Highlightly: GET /lineups/{matchId} — homeTeam + awayTeam objektum */
+    @GET("lineups/{matchId}")
     suspend fun getLineups(
-        @Path("id") id: Long
+        @Path("matchId") matchId: Long
     ): LineupsResponse
 
-    @GET("matches/{id}/highlights")
+    /** Highlightly: GET /highlights?matchId= */
+    @GET("highlights")
     suspend fun getHighlights(
-        @Path("id") matchId: Long
+        @Query("matchId") matchId: Long,
+        @Query("limit") limit: Int = 20
     ): HighlightsResponse
 }
