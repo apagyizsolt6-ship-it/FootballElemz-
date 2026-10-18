@@ -61,12 +61,12 @@ class MatchRepository @Inject constructor(
 
     suspend fun getMatchExtraData(matchId: Long): MatchExtraData {
         val stats = try {
-            val resp = api.getStatistics(matchId)
-            resp.data.map { team ->
+            val list = api.getStatistics(matchId)
+            list.map { teamDto ->
                 TeamStat(
-                    teamName = team.teamName ?: "Csapat",
-                    stats = team.statistics.associate {
-                        (it.type ?: "") to (it.value ?: "-")
+                    teamName = teamDto.team?.name ?: "Csapat",
+                    stats = teamDto.statistics.associate { item ->
+                        (item.displayName ?: "Stat") to item.valueAsString()
                     }
                 )
             }
@@ -76,18 +76,40 @@ class MatchRepository @Inject constructor(
 
         val lineups = try {
             val resp = api.getLineups(matchId)
-            resp.data.map { team ->
-                TeamLineup(
-                    teamName = team.teamName ?: "Csapat",
-                    formation = team.formation,
-                    starters = team.startXI.map {
-                        Player(it.name ?: "?", it.number, it.pos)
-                    },
-                    substitutes = team.substitutes.map {
-                        Player(it.name ?: "?", it.number, it.pos)
-                    }
+            val result = mutableListOf<TeamLineup>()
+            resp.homeTeam?.let { team ->
+                val starters = team.initialLineup.flatten().map { p ->
+                    Player(p.name ?: "?", p.number, p.position)
+                }
+                val subs = team.substitutes.map { p ->
+                    Player(p.name ?: "?", p.number, p.position)
+                }
+                result.add(
+                    TeamLineup(
+                        teamName = team.name ?: "Hazai",
+                        formation = team.formation,
+                        starters = starters,
+                        substitutes = subs
+                    )
                 )
             }
+            resp.awayTeam?.let { team ->
+                val starters = team.initialLineup.flatten().map { p ->
+                    Player(p.name ?: "?", p.number, p.position)
+                }
+                val subs = team.substitutes.map { p ->
+                    Player(p.name ?: "?", p.number, p.position)
+                }
+                result.add(
+                    TeamLineup(
+                        teamName = team.name ?: "Vendég",
+                        formation = team.formation,
+                        starters = starters,
+                        substitutes = subs
+                    )
+                )
+            }
+            result
         } catch (_: Exception) {
             emptyList()
         }
