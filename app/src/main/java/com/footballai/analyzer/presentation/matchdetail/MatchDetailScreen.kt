@@ -218,7 +218,20 @@ private fun OverviewTab(match: Match, onAiClick: () -> Unit) {
             }
         }
 
-        Spacer(Modifier.height(32.dp))
+        Text(
+            text = "Kezdés: " + formatKickoff(match.date),
+            color = TextSecondary,
+            fontSize = 13.sp
+        )
+        Spacer(Modifier.height(8.dp))
+        Text(
+            text = translateStatus(match.status),
+            color = if (match.isLive) RedLive else TextSecondary,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Medium
+        )
+
+        Spacer(Modifier.height(24.dp))
 
         Button(
             onClick = onAiClick,
@@ -239,7 +252,7 @@ private fun OverviewTab(match: Match, onAiClick: () -> Unit) {
 @Composable
 private fun StatsTab(extra: MatchExtraData) {
     if (extra.statistics.isEmpty()) {
-        EmptyMessage("Nincs elérhető statisztika")
+        EmptyMessage("Nincs elérhető statisztika.\nA meccs kezdete után jelennek meg az adatok.")
         return
     }
 
@@ -280,7 +293,7 @@ private fun StatsTab(extra: MatchExtraData) {
 @Composable
 private fun LineupsTab(extra: MatchExtraData) {
     if (extra.lineups.isEmpty()) {
-        EmptyMessage("Nincs elérhető felállás")
+        EmptyMessage("Nincs elérhető felállás.\nÁltalában a kezdés előtt ~40 perccel jelenik meg.")
         return
     }
 
@@ -329,7 +342,7 @@ private fun HighlightsTab(extra: MatchExtraData) {
     val uriHandler = LocalUriHandler.current
 
     if (extra.highlights.isEmpty()) {
-        EmptyMessage("Nincs elérhető highlight")
+        EmptyMessage("Nincs elérhető highlight.\nVideók a meccs után kerülnek fel.")
         return
     }
 
@@ -408,9 +421,45 @@ private fun AiTab(uiState: MatchDetailUiState, onGenerate: () -> Unit) {
     }
 }
 
+
+private fun translateStatus(status: String): String {
+    val s = status.lowercase()
+    return when {
+        s.contains("not started") || s.contains("to be announced") -> "Nem kezdődött el"
+        s.contains("first half") -> "1. félidő"
+        s.contains("second half") -> "2. félidő"
+        s.contains("half time") || s == "ht" -> "Félidő"
+        s.contains("finished") || s == "ft" -> "Vége"
+        s.contains("extra time") -> "Hosszabbítás"
+        s.contains("penalties") -> "Büntetők"
+        s.contains("postponed") -> "Elhalasztva"
+        s.contains("cancelled") || s.contains("canceled") -> "Törölve"
+        s.contains("in progress") -> "Folyamatban"
+        else -> status
+    }
+}
+
+private fun formatKickoff(dateString: String?): String {
+    if (dateString.isNullOrBlank()) return "-"
+    return try {
+        val odt = java.time.OffsetDateTime.parse(dateString)
+        val bp = odt.atZoneSameInstant(java.time.ZoneId.of("Europe/Budapest"))
+        bp.format(java.time.format.DateTimeFormatter.ofPattern("yyyy.MM.dd. HH:mm"))
+    } catch (_: Exception) {
+        dateString
+    }
+}
+
 @Composable
 private fun EmptyMessage(text: String) {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Text(text, color = TextSecondary)
+        Text(
+            text = text,
+            color = TextSecondary,
+            textAlign = TextAlign.Center,
+            fontSize = 14.sp,
+            lineHeight = 20.sp,
+            modifier = Modifier.padding(24.dp)
+        )
     }
 }
