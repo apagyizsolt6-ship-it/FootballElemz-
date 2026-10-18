@@ -13,5 +13,6 @@ data class HighlightDto(
     val title: String? = null,
     val url: String? = null,
     val imgUrl: String? = null,
-    val type: String? = null
+    val type: String? = null,
+    val description: String? = null
 )
