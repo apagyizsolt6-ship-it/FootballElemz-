@@ -136,11 +136,15 @@ fun MatchDetailScreen(
 
                     // Tartalom
                     when (uiState.selectedTab) {
-                        0 -> OverviewTab(uiState.match!!, onAiClick = { viewModel.generateAiAnalysis() })
+                        0 -> OverviewTab(uiState.match!!, onAiClick = { viewModel.generateAiAnalysis(fromAuto = false) })
                         1 -> StatsTab(uiState.extra)
                         2 -> LineupsTab(uiState.extra)
                         3 -> HighlightsTab(uiState.extra)
-                        4 -> AiTab(uiState, onGenerate = { viewModel.generateAiAnalysis() })
+                        4 -> AiTab(
+                uiState = uiState,
+                onGenerate = { viewModel.generateAiAnalysis() },
+                onRegenerate = { viewModel.regenerateAi() }
+            ) })
                     }
                 }
             }
@@ -383,70 +387,103 @@ private fun HighlightsTab(extra: MatchExtraData) {
 }
 
 @Composable
-private fun AiTab(uiState: MatchDetailUiState, onGenerate: () -> Unit) {
+private fun AiTab(
+    uiState: MatchDetailUiState,
+    onGenerate: () -> Unit,
+    onRegenerate: () -> Unit
+) {
     Column(
         Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
             .padding(16.dp)
     ) {
-        if (uiState.isAiLoading) {
-            Box(Modifier.fillMaxWidth().height(120.dp), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = GreenPrimary)
+        when {
+            uiState.isAiLoading -> {
+                Box(
+                    Modifier.fillMaxWidth().height(140.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        CircularProgressIndicator(color = GreenPrimary)
+                        Spacer(Modifier.height(12.dp))
+                        Text(
+                            text = if (uiState.autoAiEligible)
+                                "Automatikus AI elemzés..."
+                            else
+                                "AI elemzés...",
+                            color = TextSecondary,
+                            fontSize = 13.sp
+                        )
+                    }
+                }
             }
-        } else if (uiState.aiAnalysis != null) {
-            Text(
-                uiState.aiAnalysis,
-                color = TextPrimary,
-                fontSize = 14.sp,
-                lineHeight = 22.sp
-            )
-        } else {
-            Text(
-                "Nyomd meg a gombot az AI elemzés generálásához.",
-                color = TextSecondary
-            )
-            Spacer(Modifier.height(16.dp))
-            Button(
-                onClick = onGenerate,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = GreenPrimary,
-                    contentColor = DarkBackground
-                ),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Text("AI Elemzés", fontWeight = FontWeight.Bold)
+            uiState.aiError != null && uiState.aiAnalysis == null -> {
+                Text(
+                    text = uiState.aiError ?: "",
+                    color = RedLive,
+                    fontSize = 13.sp
+                )
+                Spacer(Modifier.height(12.dp))
+                Button(
+                    onClick = onGenerate,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = GreenPrimary,
+                        contentColor = DarkBackground
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text("Újrapróbálás", fontWeight = FontWeight.Bold)
+                }
+            }
+            uiState.aiAnalysis != null -> {
+                if (uiState.autoAiEligible) {
+                    Text(
+                        text = "Top 5 / kedvenc liga – automatikus elemzés",
+                        color = TextSecondary,
+                        fontSize = 12.sp
+                    )
+                    Spacer(Modifier.height(8.dp))
+                }
+                Text(
+                    text = uiState.aiAnalysis ?: "",
+                    color = TextPrimary,
+                    fontSize = 14.sp,
+                    lineHeight = 22.sp
+                )
+                Spacer(Modifier.height(16.dp))
+                Button(
+                    onClick = onRegenerate,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = DarkCard,
+                        contentColor = TextPrimary
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text("Újragenerálás")
+                }
+            }
+            else -> {
+                Text(
+                    text = if (uiState.autoAiEligible)
+                        "Az AI elemzés automatikusan elindul (Top 5 / kedvenc)."
+                    else
+                        "Nyomd meg a gombot az AI elemzés generálásához.",
+                    color = TextSecondary
+                )
+                Spacer(Modifier.height(16.dp))
+                Button(
+                    onClick = onGenerate,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = GreenPrimary,
+                        contentColor = DarkBackground
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text("AI Elemzés", fontWeight = FontWeight.Bold)
+                }
             }
         }
-    }
-}
-
-
-private fun translateStatus(status: String): String {
-    val s = status.lowercase()
-    return when {
-        s.contains("not started") || s.contains("to be announced") -> "Nem kezdődött el"
-        s.contains("first half") -> "1. félidő"
-        s.contains("second half") -> "2. félidő"
-        s.contains("half time") || s == "ht" -> "Félidő"
-        s.contains("finished") || s == "ft" -> "Vége"
-        s.contains("extra time") -> "Hosszabbítás"
-        s.contains("penalties") -> "Büntetők"
-        s.contains("postponed") -> "Elhalasztva"
-        s.contains("cancelled") || s.contains("canceled") -> "Törölve"
-        s.contains("in progress") -> "Folyamatban"
-        else -> status
-    }
-}
-
-private fun formatKickoff(dateString: String?): String {
-    if (dateString.isNullOrBlank()) return "-"
-    return try {
-        val odt = java.time.OffsetDateTime.parse(dateString)
-        val bp = odt.atZoneSameInstant(java.time.ZoneId.of("Europe/Budapest"))
-        bp.format(java.time.format.DateTimeFormatter.ofPattern("yyyy.MM.dd. HH:mm"))
-    } catch (_: Exception) {
-        dateString
     }
 }
 

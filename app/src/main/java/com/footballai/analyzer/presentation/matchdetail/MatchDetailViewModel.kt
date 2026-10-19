@@ -3,14 +3,18 @@ package com.footballai.analyzer.presentation.matchdetail
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.footballai.analyzer.data.local.AiAnalysisCache
+import com.footballai.analyzer.data.local.UserPreferences
 import com.footballai.analyzer.data.remote.LlmService
 import com.footballai.analyzer.data.repository.MatchRepository
 import com.footballai.analyzer.domain.model.Match
 import com.footballai.analyzer.domain.model.MatchExtraData
+import com.footballai.analyzer.util.LeagueTranslator
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -21,6 +25,9 @@ data class MatchDetailUiState(
     val selectedTab: Int = 0,
     val aiAnalysis: String? = null,
     val isAiLoading: Boolean = false,
+    val aiError: String? = null,
+    /** true = top 5 vagy kedvenc liga → auto AI */
+    val autoAiEligible: Boolean = false,
     val error: String? = null
 )
 
@@ -28,6 +35,8 @@ data class MatchDetailUiState(
 class MatchDetailViewModel @Inject constructor(
     private val repository: MatchRepository,
     private val llmService: LlmService,
+    private val userPreferences: UserPreferences,
+    private val aiCache: AiAnalysisCache,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -60,34 +69,76 @@ class MatchDetailViewModel @Inject constructor(
             val match = matchResult.getOrThrow()
             val extra = repository.getMatchExtraData(matchId)
 
+            val header = LeagueTranslator.formatHeader(match.countryName, match.leagueName)
+            val pinned = userPreferences.pinnedLeagues.first()
+            val isTop = LeagueTranslator.isTopLeague(header)
+            val isPinned = pinned.contains(header)
+            val autoEligible = isTop || isPinned
+
+            // Cache-ből azonnal
+            val cached = aiCache.get(matchId)
+
             _uiState.value = MatchDetailUiState(
                 isLoading = false,
                 match = match,
-                extra = extra
+                extra = extra,
+                autoAiEligible = autoEligible,
+                aiAnalysis = cached
             )
+
+            // Auto AI: top 5 vagy kedvenc, és még nincs cache
+            if (autoEligible && cached == null) {
+                generateAiAnalysis(fromAuto = true)
+            }
         }
     }
 
-    fun generateAiAnalysis() {
+    /**
+     * Manuális gomb VAGY auto hívás.
+     * @param force true = újragenerálás cache ellenére
+     */
+    fun generateAiAnalysis(fromAuto: Boolean = false, force: Boolean = false) {
         val match = _uiState.value.match ?: return
         val extra = _uiState.value.extra
 
+        if (!force) {
+            aiCache.get(matchId)?.let { cached ->
+                _uiState.value = _uiState.value.copy(
+                    aiAnalysis = cached,
+                    isAiLoading = false,
+                    aiError = null,
+                    selectedTab = if (fromAuto) _uiState.value.selectedTab else 4
+                )
+                return
+            }
+        }
+
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isAiLoading = true, selectedTab = 4, aiAnalysis = null)
+            _uiState.value = _uiState.value.copy(
+                isAiLoading = true,
+                aiError = null,
+                selectedTab = if (fromAuto) _uiState.value.selectedTab else 4
+            )
 
             val result = llmService.analyzeMatch(match, extra)
-
-            _uiState.value = if (result.isSuccess) {
-                _uiState.value.copy(
+            if (result.isSuccess) {
+                val text = result.getOrThrow()
+                aiCache.put(matchId, text)
+                _uiState.value = _uiState.value.copy(
                     isAiLoading = false,
-                    aiAnalysis = result.getOrThrow()
+                    aiAnalysis = text,
+                    aiError = null
                 )
             } else {
-                _uiState.value.copy(
+                _uiState.value = _uiState.value.copy(
                     isAiLoading = false,
-                    aiAnalysis = "❌ LLM hiba:\n${result.exceptionOrNull()?.message}"
+                    aiError = result.exceptionOrNull()?.message ?: "AI hiba"
                 )
             }
         }
+    }
+
+    fun regenerateAi() {
+        generateAiAnalysis(fromAuto = false, force = true)
     }
 }
