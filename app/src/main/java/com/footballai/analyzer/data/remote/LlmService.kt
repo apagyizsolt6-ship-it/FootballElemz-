@@ -3,6 +3,7 @@ package com.footballai.analyzer.data.remote
 import com.footballai.analyzer.data.local.ApiKeyProvider
 import com.footballai.analyzer.domain.model.Match
 import com.footballai.analyzer.domain.model.MatchExtraData
+import com.footballai.analyzer.util.LeagueTranslator
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
@@ -22,7 +23,7 @@ data class ChatMessage(val role: String, val content: String)
 data class ChatRequest(
     val model: String,
     val messages: List<ChatMessage>,
-    val temperature: Double = 0.7
+    val temperature: Double = 0.65
 )
 
 @Serializable
@@ -38,35 +39,38 @@ class LlmService @Inject constructor(
     private val json = Json { ignoreUnknownKeys = true }
     private val client = OkHttpClient.Builder()
         .connectTimeout(60, TimeUnit.SECONDS)
-        .readTimeout(90, TimeUnit.SECONDS)
+        .readTimeout(120, TimeUnit.SECONDS)
         .build()
 
     suspend fun analyzeMatch(match: Match, extra: MatchExtraData): Result<String> =
         withContext(Dispatchers.IO) {
             try {
-                val apiKey = apiKeyProvider.getLlmKey()
+                val apiKey = apiKeyProvider.getLlmKey().trim()
                 if (apiKey.isBlank()) {
                     return@withContext Result.failure(
-                        Exception("Nincs LLM API kulcs. Allitsd be a Beallitasokban.")
+                        Exception("Nincs LLM API kulcs. Állítsd be a Beállításokban.")
                     )
                 }
 
-                var baseUrl = apiKeyProvider.getLlmBaseUrl()
+                var baseUrl = apiKeyProvider.getLlmBaseUrl().trim()
+                if (baseUrl.isBlank() || (!baseUrl.startsWith("http://") && !baseUrl.startsWith("https://"))) {
+                    baseUrl = "https://api.x.ai/v1/"
+                }
                 if (!baseUrl.endsWith("/")) baseUrl += "/"
-                val model = apiKeyProvider.getLlmModel()
 
-                val prompt = buildPrompt(match, extra)
+                var model = apiKeyProvider.getLlmModel().trim()
+                if (model.isBlank()) model = "grok-4.7"
+
+                val isTop = LeagueTranslator.isTopLeague(
+                    LeagueTranslator.formatHeader(match.countryName, match.leagueName)
+                )
+                val prompt = buildPrompt(match, extra, isTop)
+                val systemPrompt = buildSystemPrompt(isTop)
 
                 val body = ChatRequest(
                     model = model,
                     messages = listOf(
-                        ChatMessage(
-                            role = "system",
-                            content = "Te egy profi labdarugo-elemzo vagy. Magyarul irj. " +
-                                "Adj reszletes, szakertori meccselemzest: helyzetertékelés, taktika, " +
-                                "kulcsjatekosok, statisztikai olvasat, elorejelzes. " +
-                                "Legyel konkret es szakszeru, ne sablonos."
-                        ),
+                        ChatMessage(role = "system", content = systemPrompt),
                         ChatMessage(role = "user", content = prompt)
                     )
                 )
@@ -86,14 +90,14 @@ class LlmService @Inject constructor(
 
                 if (!response.isSuccessful) {
                     return@withContext Result.failure(
-                        Exception("LLM hiba (" + response.code + "): " + responseBody.take(200))
+                        Exception("LLM hiba (" + response.code + "): " + responseBody.take(300))
                     )
                 }
 
                 val parsed = json.decodeFromString(ChatResponse.serializer(), responseBody)
                 val text = parsed.choices.firstOrNull()?.message?.content
-                if (text == null) {
-                    return@withContext Result.failure(Exception("Ures LLM valasz"))
+                if (text.isNullOrBlank()) {
+                    return@withContext Result.failure(Exception("Üres LLM válasz"))
                 }
 
                 Result.success(text)
@@ -102,24 +106,66 @@ class LlmService @Inject constructor(
             }
         }
 
-    private fun buildPrompt(match: Match, extra: MatchExtraData): String {
+    private fun buildSystemPrompt(isTopLeague: Boolean): String {
+        val base = """
+Te egy profi labdarúgó-elemző vagy. Magyarul írj, szakszerűen, konkrétan.
+
+Kötelező struktúra (címekkel):
+1) HELYZETÉRTÉKELÉS – állás, perc, státusz, meccs fázisa
+2) TAKTIKAI KÉP – stílus, nyomás, átmenetek, gyenge pontok
+3) STATISZTIKAI OLVASAT – ha van adat: birtoklás, lövések, xG-jellegű következtetés
+4) KULCSPONTOK – 3–5 konkrét megfigyelés
+5) ELŐREJELZÉS – legvalószínűbb forgatókönyv + gólvárakozás
+""".trimIndent()
+
+        val cornersCards = if (isTopLeague) {
+            """
+
+6) VÁRHATÓ SZÖGLETEK (Top liga)
+   - Becsüld a teljes meccs szögletszámát (összesen, pl. 8–11)
+   - Hazai / vendég bontás (pl. 5–6 / 3–4)
+   - Indoklás: játékstílus, szélsők, nyomás, standard helyzetek gyakorisága
+   - Tipikus Premier League / La Liga / Bundesliga / Serie A / Ligue 1 szöglet-átlagok alapján
+
+7) VÁRHATÓ SÁRGA / PIROS LAPOK (Top liga)
+   - Várható sárga lapok száma összesen (pl. 3–5)
+   - Hazai / vendég bontás
+   - Piros lap kockázata (alacsony / közepes / magas) + indok
+   - Figyelem: intenzitás, derby, fogadások, visszavágók, korai sárgák
+
+A 6–7. pont legyen számszerű és indokolt, ne sablonos.
+""".trimIndent()
+        } else {
+            """
+
+6) EXTRA MEGJEGYZÉS
+   - Ha van adat szögletekről / lapokról, röviden értelmezd
+   - Ha nincs, ne találj ki pontos számokat kisebb ligákra
+""".trimIndent()
+        }
+
+        return base + cornersCards + "\n\nNe írj bevezetőt vagy zárást marketing-stílusban. Legyél tömör, de részletes (kb. 500–800 szó)."
+    }
+
+    private fun buildPrompt(match: Match, extra: MatchExtraData, isTopLeague: Boolean): String {
         val sb = StringBuilder()
-        sb.appendLine("Elemezd a kovetkezo focimeccset reszletesen:")
+        sb.appendLine("Elemezd a következő focimeccset:")
         sb.appendLine()
         sb.appendLine("Hazai: " + match.homeTeamName)
-        sb.appendLine("Vendeg: " + match.awayTeamName)
+        sb.appendLine("Vendég: " + match.awayTeamName)
         sb.appendLine("Liga: " + match.leagueName)
-        sb.appendLine("Orszag: " + (match.countryName ?: "-"))
-        sb.appendLine("Allas: " + match.score)
-        sb.appendLine("Statusz: " + match.status)
+        sb.appendLine("Ország: " + (match.countryName ?: "-"))
+        sb.appendLine("Állás: " + match.score)
+        sb.appendLine("Státusz: " + match.status)
         if (match.isLive) {
             sb.appendLine("Perc: " + (match.minute?.toString() ?: "?") + "'")
         }
-        sb.appendLine("Datum: " + (match.date ?: "-"))
+        sb.appendLine("Dátum: " + (match.date ?: "-"))
+        sb.appendLine("Top 5 liga: " + if (isTopLeague) "IGEN" else "nem")
         sb.appendLine()
 
         if (extra.statistics.isNotEmpty()) {
-            sb.appendLine("STATISZTIKAK:")
+            sb.appendLine("STATISZTIKÁK:")
             for (team in extra.statistics) {
                 sb.appendLine(team.teamName + ":")
                 for ((k, v) in team.stats) {
@@ -127,18 +173,21 @@ class LlmService @Inject constructor(
                 }
             }
             sb.appendLine()
+        } else {
+            sb.appendLine("Statisztika: még nem elérhető (pre-match vagy API üres).")
+            sb.appendLine()
         }
 
         if (extra.lineups.isNotEmpty()) {
-            sb.appendLine("FELALLASOK:")
+            sb.appendLine("FELÁLLÁSOK:")
             for (team in extra.lineups) {
                 val formation = team.formation ?: "?"
                 sb.appendLine(team.teamName + " (" + formation + "):")
-                val starterNames = team.starters.joinToString(", ") { p -> p.name }
-                sb.appendLine("  Kezdo: " + starterNames)
+                val starters = team.starters.joinToString(", ") { p -> p.name }
+                sb.appendLine("  Kezdő: " + starters)
                 if (team.substitutes.isNotEmpty()) {
-                    val subNames = team.substitutes.joinToString(", ") { p -> p.name }
-                    sb.appendLine("  Cserek: " + subNames)
+                    val subs = team.substitutes.joinToString(", ") { p -> p.name }
+                    sb.appendLine("  Pad: " + subs)
                 }
             }
             sb.appendLine()
@@ -150,7 +199,15 @@ class LlmService @Inject constructor(
             sb.appendLine()
         }
 
-        sb.appendLine("Irj 400-700 szo koruli, strukturált magyar elemzest.")
+        if (isTopLeague) {
+            sb.appendLine("KÜLÖN KÉRÉS (Top liga):")
+            sb.appendLine("- Adj számszerű becslést a várható ÖSSZES szögletre és a hazai/vendég bontásra.")
+            sb.appendLine("- Adj számszerű becslést a várható sárga lapokra (összesen + bontás) és a piros lap kockázatára.")
+            sb.appendLine("- Ha van élő/stat adat szögletre vagy lapokra, abból indulj ki; ha nincs, ligaátlag + stílus alapján becsülj.")
+            sb.appendLine()
+        }
+
+        sb.appendLine("Írj strukturált, magyar szakértői elemzést a megadott pontok szerint.")
         return sb.toString()
     }
 }
