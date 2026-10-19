@@ -113,7 +113,7 @@ Te egy profi labdarúgó-elemző vagy. Magyarul írj, szakszerűen, konkrétan.
 Kötelező struktúra (címekkel):
 1) HELYZETÉRTÉKELÉS – állás, perc, státusz, meccs fázisa
 2) TAKTIKAI KÉP – stílus, nyomás, átmenetek, gyenge pontok
-3) STATISZTIKAI OLVASAT – ha van adat: birtoklás, lövések, xG-jellegű következtetés
+3) STATISZTIKAI OLVASAT – ha van adat: birtoklás, lövések, következtetés
 4) KULCSPONTOK – 3–5 konkrét megfigyelés
 5) ELŐREJELZÉS – legvalószínűbb forgatókönyv + gólvárakozás
 """.trimIndent()
@@ -124,16 +124,14 @@ Kötelező struktúra (címekkel):
 6) VÁRHATÓ SZÖGLETEK (Top liga)
    - Becsüld a teljes meccs szögletszámát (összesen, pl. 8–11)
    - Hazai / vendég bontás (pl. 5–6 / 3–4)
-   - Indoklás: játékstílus, szélsők, nyomás, standard helyzetek gyakorisága
-   - Tipikus Premier League / La Liga / Bundesliga / Serie A / Ligue 1 szöglet-átlagok alapján
+   - Indoklás: játékstílus, szélsők, nyomás, standard helyzetek
 
 7) VÁRHATÓ SÁRGA / PIROS LAPOK (Top liga)
    - Várható sárga lapok száma összesen (pl. 3–5)
    - Hazai / vendég bontás
    - Piros lap kockázata (alacsony / közepes / magas) + indok
-   - Figyelem: intenzitás, derby, fogadások, visszavágók, korai sárgák
 
-A 6–7. pont legyen számszerű és indokolt, ne sablonos.
+A 6–7. pont legyen számszerű és indokolt.
 """.trimIndent()
         } else {
             """
@@ -144,7 +142,7 @@ A 6–7. pont legyen számszerű és indokolt, ne sablonos.
 """.trimIndent()
         }
 
-        return base + cornersCards + "\n\nNe írj bevezetőt vagy zárást marketing-stílusban. Legyél tömör, de részletes (kb. 500–800 szó)."
+        return base + cornersCards + "\n\nNe írj marketing-stílusú bevezetőt. Legyél tömör, de részletes (kb. 500–800 szó)."
     }
 
     private fun buildPrompt(match: Match, extra: MatchExtraData, isTopLeague: Boolean): String {
@@ -174,7 +172,7 @@ A 6–7. pont legyen számszerű és indokolt, ne sablonos.
             }
             sb.appendLine()
         } else {
-            sb.appendLine("Statisztika: még nem elérhető (pre-match vagy API üres).")
+            sb.appendLine("Statisztika: még nem elérhető.")
             sb.appendLine()
         }
 
@@ -201,9 +199,8 @@ A 6–7. pont legyen számszerű és indokolt, ne sablonos.
 
         if (isTopLeague) {
             sb.appendLine("KÜLÖN KÉRÉS (Top liga):")
-            sb.appendLine("- Adj számszerű becslést a várható ÖSSZES szögletre és a hazai/vendég bontásra.")
-            sb.appendLine("- Adj számszerű becslést a várható sárga lapokra (összesen + bontás) és a piros lap kockázatára.")
-            sb.appendLine("- Ha van élő/stat adat szögletre vagy lapokra, abból indulj ki; ha nincs, ligaátlag + stílus alapján becsülj.")
+            sb.appendLine("- Számszerű becslés: várható összes szöglet + hazai/vendég bontás.")
+            sb.appendLine("- Számszerű becslés: várható sárga lapok + piros kockázat.")
             sb.appendLine()
         }
 
