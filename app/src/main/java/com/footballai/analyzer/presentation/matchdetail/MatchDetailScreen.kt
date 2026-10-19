@@ -53,6 +53,9 @@ import com.footballai.analyzer.ui.theme.GreenPrimary
 import com.footballai.analyzer.ui.theme.RedLive
 import com.footballai.analyzer.ui.theme.TextPrimary
 import com.footballai.analyzer.ui.theme.TextSecondary
+import java.time.OffsetDateTime
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -107,13 +110,12 @@ fun MatchDetailScreen(
                         .fillMaxSize()
                         .padding(padding)
                 ) {
-                    // Tab sáv
                     Row(
                         Modifier
                             .fillMaxWidth()
                             .horizontalScroll(rememberScrollState())
-                            .padding(horizontal = 8.dp, vertical = 8.dp),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         tabs.forEachIndexed { index, title ->
                             val selected = uiState.selectedTab == index
@@ -134,17 +136,19 @@ fun MatchDetailScreen(
                         }
                     }
 
-                    // Tartalom
                     when (uiState.selectedTab) {
-                        0 -> OverviewTab(uiState.match!!, onAiClick = { viewModel.generateAiAnalysis(fromAuto = false) })
+                        0 -> OverviewTab(
+                            match = uiState.match!!,
+                            onAiClick = { viewModel.generateAiAnalysis(fromAuto = false) }
+                        )
                         1 -> StatsTab(uiState.extra)
                         2 -> LineupsTab(uiState.extra)
                         3 -> HighlightsTab(uiState.extra)
                         4 -> AiTab(
-                uiState = uiState,
-                onGenerate = { viewModel.generateAiAnalysis() },
-                onRegenerate = { viewModel.regenerateAi() }
-            ) })
+                            uiState = uiState,
+                            onGenerate = { viewModel.generateAiAnalysis() },
+                            onRegenerate = { viewModel.regenerateAi() }
+                        )
                     }
                 }
             }
@@ -166,7 +170,11 @@ private fun OverviewTab(match: Match, onAiClick: () -> Unit) {
         ) {
             Text(match.leagueName, color = TextSecondary, fontSize = 13.sp)
             Text(
-                if (match.isLive) "ÉLŐ ${match.minute ?: ""}'" else match.status,
+                text = if (match.isLive) {
+                    "ÉLŐ " + (match.minute?.toString() ?: "") + "'"
+                } else {
+                    translateStatus(match.status)
+                },
                 color = if (match.isLive) RedLive else TextSecondary,
                 fontSize = 13.sp,
                 fontWeight = if (match.isLive) FontWeight.Bold else FontWeight.Normal
@@ -222,17 +230,13 @@ private fun OverviewTab(match: Match, onAiClick: () -> Unit) {
             }
         }
 
+        Spacer(Modifier.height(16.dp))
         Text(
             text = "Kezdés: " + formatKickoff(match.date),
             color = TextSecondary,
-            fontSize = 13.sp
-        )
-        Spacer(Modifier.height(8.dp))
-        Text(
-            text = translateStatus(match.status),
-            color = if (match.isLive) RedLive else TextSecondary,
             fontSize = 13.sp,
-            fontWeight = FontWeight.Medium
+            modifier = Modifier.fillMaxWidth(),
+            textAlign = TextAlign.Center
         )
 
         Spacer(Modifier.height(24.dp))
@@ -268,28 +272,37 @@ private fun StatsTab(extra: MatchExtraData) {
     ) {
         val home = extra.statistics.getOrNull(0)
         val away = extra.statistics.getOrNull(1)
-        val allKeys = (home?.stats?.keys.orEmpty() + away?.stats?.keys.orEmpty()).distinct()
+        val keys = (home?.stats?.keys.orEmpty() + away?.stats?.keys.orEmpty()).toSet().toList()
 
-        allKeys.forEach { key ->
-            val h = home?.stats?.get(key) ?: "-"
-            val a = away?.stats?.get(key) ?: "-"
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(h, color = TextPrimary, modifier = Modifier.weight(1f), textAlign = TextAlign.End)
-                Text(
-                    key,
-                    color = TextSecondary,
-                    fontSize = 12.sp,
-                    modifier = Modifier.weight(1.5f),
-                    textAlign = TextAlign.Center
-                )
-                Text(a, color = TextPrimary, modifier = Modifier.weight(1f), textAlign = TextAlign.Start)
+        if (home != null && away != null) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text(home.teamName, color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                Text(away.teamName, color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 13.sp)
             }
-            HorizontalDivider(color = TextSecondary.copy(alpha = 0.15f))
+            Spacer(Modifier.height(12.dp))
+            keys.forEach { key ->
+                val hv = home.stats[key] ?: "-"
+                val av = away.stats[key] ?: "-"
+                Column(Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
+                    Text(key, color = TextSecondary, fontSize = 12.sp, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text(hv, color = TextPrimary, fontWeight = FontWeight.SemiBold)
+                        Text(av, color = TextPrimary, fontWeight = FontWeight.SemiBold)
+                    }
+                    HorizontalDivider(color = DarkCard, modifier = Modifier.padding(top = 6.dp))
+                }
+            }
+        } else {
+            extra.statistics.forEach { team ->
+                Text(team.teamName, color = GreenPrimary, fontWeight = FontWeight.Bold)
+                team.stats.forEach { (k, v) ->
+                    Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text(k, color = TextSecondary)
+                        Text(v, color = TextPrimary)
+                    }
+                }
+                Spacer(Modifier.height(16.dp))
+            }
         }
     }
 }
@@ -305,51 +318,43 @@ private fun LineupsTab(extra: MatchExtraData) {
         Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(16.dp)
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
         extra.lineups.forEach { team ->
             Text(
-                "${team.teamName}${if (team.formation != null) " (${team.formation})" else ""}",
+                team.teamName + if (team.formation != null) " (" + team.formation + ")" else "",
                 color = GreenPrimary,
                 fontWeight = FontWeight.Bold,
                 fontSize = 15.sp
             )
-            Spacer(Modifier.height(8.dp))
-            Text("Kezdőcsapat", color = TextSecondary, fontSize = 12.sp)
+            Text("Kezdő", color = TextSecondary, fontSize = 12.sp)
             team.starters.forEach { p ->
-                Text(
-                    "${p.number ?: "-"}  ${p.name}${if (p.position != null) " (${p.position})" else ""}",
-                    color = TextPrimary,
-                    fontSize = 13.sp,
-                    modifier = Modifier.padding(vertical = 2.dp)
-                )
+                val num = p.number?.toString() ?: "-"
+                val pos = p.position ?: ""
+                Text("$num  ${p.name}  $pos", color = TextPrimary, fontSize = 13.sp)
             }
             if (team.substitutes.isNotEmpty()) {
                 Spacer(Modifier.height(8.dp))
-                Text("Cserejátékosok", color = TextSecondary, fontSize = 12.sp)
+                Text("Csere", color = TextSecondary, fontSize = 12.sp)
                 team.substitutes.forEach { p ->
-                    Text(
-                        "${p.number ?: "-"}  ${p.name}",
-                        color = TextPrimary,
-                        fontSize = 13.sp,
-                        modifier = Modifier.padding(vertical = 2.dp)
-                    )
+                    val num = p.number?.toString() ?: "-"
+                    Text("$num  ${p.name}", color = TextPrimary, fontSize = 13.sp)
                 }
             }
-            Spacer(Modifier.height(20.dp))
+            HorizontalDivider(color = DarkCard)
         }
     }
 }
 
 @Composable
 private fun HighlightsTab(extra: MatchExtraData) {
-    val uriHandler = LocalUriHandler.current
-
     if (extra.highlights.isEmpty()) {
         EmptyMessage("Nincs elérhető highlight.\nVideók a meccs után kerülnek fel.")
         return
     }
 
+    val uriHandler = LocalUriHandler.current
     Column(
         Modifier
             .fillMaxSize()
@@ -408,10 +413,11 @@ private fun AiTab(
                         CircularProgressIndicator(color = GreenPrimary)
                         Spacer(Modifier.height(12.dp))
                         Text(
-                            text = if (uiState.autoAiEligible)
+                            text = if (uiState.autoAiEligible) {
                                 "Automatikus AI elemzés..."
-                            else
-                                "AI elemzés...",
+                            } else {
+                                "AI elemzés..."
+                            },
                             color = TextSecondary,
                             fontSize = 13.sp
                         )
@@ -419,11 +425,7 @@ private fun AiTab(
                 }
             }
             uiState.aiError != null && uiState.aiAnalysis == null -> {
-                Text(
-                    text = uiState.aiError ?: "",
-                    color = RedLive,
-                    fontSize = 13.sp
-                )
+                Text(uiState.aiError ?: "", color = RedLive, fontSize = 13.sp)
                 Spacer(Modifier.height(12.dp))
                 Button(
                     onClick = onGenerate,
@@ -439,14 +441,14 @@ private fun AiTab(
             uiState.aiAnalysis != null -> {
                 if (uiState.autoAiEligible) {
                     Text(
-                        text = "Top 5 / kedvenc liga – automatikus elemzés",
+                        "Top 5 / kedvenc liga – automatikus elemzés",
                         color = TextSecondary,
                         fontSize = 12.sp
                     )
                     Spacer(Modifier.height(8.dp))
                 }
                 Text(
-                    text = uiState.aiAnalysis ?: "",
+                    uiState.aiAnalysis ?: "",
                     color = TextPrimary,
                     fontSize = 14.sp,
                     lineHeight = 22.sp
@@ -465,10 +467,11 @@ private fun AiTab(
             }
             else -> {
                 Text(
-                    text = if (uiState.autoAiEligible)
+                    text = if (uiState.autoAiEligible) {
                         "Az AI elemzés automatikusan elindul (Top 5 / kedvenc)."
-                    else
-                        "Nyomd meg a gombot az AI elemzés generálásához.",
+                    } else {
+                        "Nyomd meg a gombot az AI elemzés generálásához."
+                    },
                     color = TextSecondary
                 )
                 Spacer(Modifier.height(16.dp))
@@ -498,5 +501,33 @@ private fun EmptyMessage(text: String) {
             lineHeight = 20.sp,
             modifier = Modifier.padding(24.dp)
         )
+    }
+}
+
+private fun translateStatus(status: String): String {
+    val s = status.lowercase()
+    return when {
+        s.contains("not started") || s.contains("to be announced") -> "Nem kezdődött el"
+        s.contains("first half") -> "1. félidő"
+        s.contains("second half") -> "2. félidő"
+        s.contains("half time") || s == "ht" -> "Félidő"
+        s.contains("finished") || s == "ft" -> "Vége"
+        s.contains("extra time") -> "Hosszabbítás"
+        s.contains("penalties") -> "Büntetők"
+        s.contains("postponed") -> "Elhalasztva"
+        s.contains("cancelled") || s.contains("canceled") -> "Törölve"
+        s.contains("in progress") -> "Folyamatban"
+        else -> status
+    }
+}
+
+private fun formatKickoff(dateString: String?): String {
+    if (dateString.isNullOrBlank()) return "-"
+    return try {
+        val odt = OffsetDateTime.parse(dateString)
+        val bp = odt.atZoneSameInstant(ZoneId.of("Europe/Budapest"))
+        bp.format(DateTimeFormatter.ofPattern("yyyy.MM.dd. HH:mm"))
+    } catch (_: Exception) {
+        dateString
     }
 }
