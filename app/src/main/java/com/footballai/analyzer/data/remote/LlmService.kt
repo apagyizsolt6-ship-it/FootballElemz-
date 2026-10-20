@@ -159,7 +159,7 @@ A 6–7. pont legyen számszerű és indokolt.
             sb.appendLine("Perc: " + (match.minute?.toString() ?: "?") + "'")
         }
         sb.appendLine("Dátum: " + (match.date ?: "-"))
-        sb.appendLine("Top 5 liga: " + if (isTopLeague) "IGEN" else "nem")
+        sb.appendLine("Top liga: " + if (isTopLeague) "IGEN" else "nem")
         sb.appendLine()
 
         if (extra.statistics.isNotEmpty()) {
