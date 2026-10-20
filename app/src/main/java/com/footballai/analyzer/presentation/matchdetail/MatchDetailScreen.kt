@@ -441,7 +441,7 @@ private fun AiTab(
             uiState.aiAnalysis != null -> {
                 if (uiState.autoAiEligible) {
                     Text(
-                        "Top 5 / kedvenc liga – automatikus elemzés",
+                        "Top liga / kedvenc – automatikus elemzés",
                         color = TextSecondary,
                         fontSize = 12.sp
                     )
@@ -468,7 +468,7 @@ private fun AiTab(
             else -> {
                 Text(
                     text = if (uiState.autoAiEligible) {
-                        "Az AI elemzés automatikusan elindul (Top 5 / kedvenc)."
+                        "Az AI elemzés automatikusan elindul (Top liga / kedvenc)."
                     } else {
                         "Nyomd meg a gombot az AI elemzés generálásához."
                     },
