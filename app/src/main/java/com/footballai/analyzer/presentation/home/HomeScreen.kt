@@ -22,7 +22,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.filled.StarBorder
+
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -148,7 +148,7 @@ fun HomeScreen(
                 FilterChip("Hátralévő", uiState.filter == MatchFilter.UPCOMING) {
                     viewModel.setFilter(MatchFilter.UPCOMING)
                 }
-                FilterChip("Top 5", uiState.onlyTopLeagues) {
+                FilterChip("Top ligák", uiState.onlyTopLeagues) {
                     viewModel.toggleTopLeagues()
                 }
             }
@@ -161,7 +161,7 @@ fun HomeScreen(
             ) {
                 val countText = when {
                     uiState.onlyTopLeagues ->
-                        "${uiState.filteredMatchCount} meccs (Top / kedvenc)"
+                        "${uiState.filteredMatchCount} meccs (Top ligák / kedvenc)"
                     uiState.filter != MatchFilter.ALL ->
                         "${uiState.filteredMatchCount} / ${uiState.totalMatchCount} meccs"
                     else ->
@@ -243,9 +243,9 @@ private fun LeagueHeader(
             modifier = Modifier.size(32.dp)
         ) {
             Icon(
-                imageVector = if (isPinned) Icons.Filled.Star else Icons.Filled.StarBorder,
+                imageVector = Icons.Filled.Star,
                 contentDescription = if (isPinned) "Kedvenc levétel" else "Kedvenc",
-                tint = if (isPinned) c.pinGold else c.textSecondary,
+                tint = if (isPinned) c.pinGold else c.textSecondary.copy(alpha = 0.35f),
                 modifier = Modifier.size(18.dp)
             )
         }
