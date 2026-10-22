@@ -1,8 +1,8 @@
 package com.footballai.analyzer.presentation.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -13,11 +13,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -38,18 +40,36 @@ fun MatchRow(
 ) {
     val c = LocalAppColors.current
     val isLive = match.isLive
-    val rowBg = if (isLive) c.liveRow else c.background
+    val finished = isFinished(match.status)
+
+    val rowBg = when {
+        isLive -> c.liveRow
+        finished -> if (c.isDark) c.surface.copy(alpha = 0.45f) else c.surface
+        else -> c.background
+    }
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .background(rowBg)
+            .then(
+                if (isLive) {
+                    Modifier.border(
+                        width = 1.dp,
+                        brush = Brush.horizontalGradient(
+                            listOf(c.redLive.copy(alpha = 0.55f), c.green.copy(alpha = 0.25f))
+                        ),
+                        shape = RoundedCornerShape(0.dp)
+                    )
+                } else Modifier
+            )
             .clickable { onClick() }
-            .padding(horizontal = 10.dp, vertical = 8.dp),
+            .padding(horizontal = 10.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        // Time / live badge
         Box(
-            modifier = Modifier.width(42.dp),
+            modifier = Modifier.width(48.dp),
             contentAlignment = Alignment.Center
         ) {
             when {
@@ -57,155 +77,140 @@ fun MatchRow(
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Box(
                             modifier = Modifier
-                                .size(6.dp)
-                                .clip(CircleShape)
+                                .clip(RoundedCornerShape(6.dp))
                                 .background(c.redLive)
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = "ÉLŐ",
+                                color = androidx.compose.ui.graphics.Color.White,
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(3.dp))
                         Text(
                             text = (match.minute?.toString() ?: "?") + "'",
                             color = c.redLive,
-                            fontSize = 12.sp,
+                            fontSize = 13.sp,
                             fontWeight = FontWeight.Bold
                         )
                     }
                 }
-                isFinished(match.status) -> {
-                    Text(text = "Vége", color = c.textSecondary, fontSize = 11.sp)
+                finished -> {
+                    Text(
+                        text = "Vége",
+                        color = c.green,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
                 }
                 else -> {
                     Text(
                         text = formatBudapestTime(match.date),
-                        color = c.textSecondary,
-                        fontSize = 12.sp
+                        color = c.blueAccent,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium
                     )
                 }
             }
         }
 
-        Spacer(modifier = Modifier.width(6.dp))
+        Spacer(Modifier.width(6.dp))
 
-        TeamCell(
-            name = match.homeTeamName,
-            logo = match.homeTeamLogo,
-            modifier = Modifier.weight(1f),
-            alignEnd = true,
-            bold = isWinner(match, home = true)
-        )
-
-        Box(
-            modifier = Modifier.width(52.dp),
-            contentAlignment = Alignment.Center
+        // Home
+        Row(
+            Modifier.weight(1f),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            val scoreColor = when {
-                isLive -> c.green
-                isFinished(match.status) -> c.textPrimary
-                else -> c.textSecondary
-            }
+            AsyncImage(
+                model = match.homeTeamLogo,
+                contentDescription = null,
+                modifier = Modifier
+                    .size(22.dp)
+                    .clip(CircleShape)
+                    .background(c.surface),
+                contentScale = ContentScale.Fit
+            )
+            Spacer(Modifier.width(6.dp))
             Text(
-                text = formatScore(match.score),
+                text = match.homeTeamName,
+                color = c.textPrimary,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+                textAlign = TextAlign.Start
+            )
+        }
+
+        // Score
+        val scoreColor = when {
+            isLive -> c.redLive
+            finished -> c.green
+            else -> c.textSecondary
+        }
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(8.dp))
+                .background(
+                    if (isLive) c.redLive.copy(alpha = 0.12f)
+                    else if (finished) c.green.copy(alpha = 0.12f)
+                    else c.surface
+                )
+                .padding(horizontal = 10.dp, vertical = 4.dp)
+        ) {
+            Text(
+                text = match.score.replace("-", "–"),
                 color = scoreColor,
-                fontSize = 14.sp,
                 fontWeight = FontWeight.Bold,
+                fontSize = 14.sp,
                 textAlign = TextAlign.Center
             )
         }
 
-        TeamCell(
-            name = match.awayTeamName,
-            logo = match.awayTeamLogo,
-            modifier = Modifier.weight(1f),
-            alignEnd = false,
-            bold = isWinner(match, home = false)
-        )
-    }
-}
-
-@Composable
-private fun TeamCell(
-    name: String,
-    logo: String?,
-    modifier: Modifier,
-    alignEnd: Boolean,
-    bold: Boolean
-) {
-    val c = LocalAppColors.current
-    Row(
-        modifier = modifier,
-        horizontalArrangement = if (alignEnd) Arrangement.End else Arrangement.Start,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        if (!alignEnd) {
-            TeamLogo(logo)
-            Spacer(modifier = Modifier.width(4.dp))
-        }
-        Text(
-            text = name,
-            color = if (bold) c.green else c.textPrimary,
-            fontSize = 13.sp,
-            fontWeight = if (bold) FontWeight.Bold else FontWeight.Normal,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            textAlign = if (alignEnd) TextAlign.End else TextAlign.Start
-        )
-        if (alignEnd) {
-            Spacer(modifier = Modifier.width(4.dp))
-            TeamLogo(logo)
+        // Away
+        Row(
+            Modifier.weight(1f),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = match.awayTeamName,
+                color = c.textPrimary,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+                textAlign = TextAlign.End
+            )
+            Spacer(Modifier.width(6.dp))
+            AsyncImage(
+                model = match.awayTeamLogo,
+                contentDescription = null,
+                modifier = Modifier
+                    .size(22.dp)
+                    .clip(CircleShape)
+                    .background(c.surface),
+                contentScale = ContentScale.Fit
+            )
         }
     }
 }
 
-@Composable
-private fun TeamLogo(url: String?) {
-    val c = LocalAppColors.current
-    if (!url.isNullOrBlank()) {
-        AsyncImage(
-            model = url,
-            contentDescription = null,
-            modifier = Modifier.size(20.dp),
-            contentScale = ContentScale.Fit
-        )
-    } else {
-        Box(
-            modifier = Modifier
-                .size(20.dp)
-                .clip(CircleShape)
-                .background(c.card)
-        )
-    }
+private fun isFinished(status: String): Boolean {
+    val s = status.lowercase()
+    return s.contains("finished") || s == "ft" || s.contains("after")
 }
 
 private fun formatBudapestTime(dateString: String?): String {
     if (dateString.isNullOrBlank()) return "--:--"
     return try {
         val odt = OffsetDateTime.parse(dateString)
-        val budapest = odt.atZoneSameInstant(ZoneId.of("Europe/Budapest"))
-        budapest.format(DateTimeFormatter.ofPattern("HH:mm"))
+        odt.atZoneSameInstant(ZoneId.of("Europe/Budapest"))
+            .format(DateTimeFormatter.ofPattern("HH:mm"))
     } catch (_: Exception) {
-        try {
-            dateString.substring(11, 16)
-        } catch (_: Exception) {
-            "--:--"
-        }
+        "--:--"
     }
-}
-
-private fun formatScore(score: String): String {
-    val s = score.replace(" ", "")
-    return if (s.contains("-") || s.contains("–")) s.replace("–", " - ").replace("-", " - ")
-    else score
-}
-
-private fun isFinished(status: String): Boolean {
-    return status.contains("Finished", ignoreCase = true) ||
-        status.contains("Vége", ignoreCase = true) ||
-        status.equals("FT", ignoreCase = true)
-}
-
-private fun isWinner(match: Match, home: Boolean): Boolean {
-    if (!isFinished(match.status) && !match.isLive) return false
-    val parts = match.score.replace(" ", "").split("-", "–")
-    val h = parts.getOrNull(0)?.toIntOrNull() ?: return false
-    val a = parts.getOrNull(1)?.toIntOrNull() ?: return false
-    return if (home) h > a else a > h
 }
