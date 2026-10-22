@@ -37,6 +37,8 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -89,7 +91,11 @@ fun HomeScreen(
                         )
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = c.background)
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = c.background,
+                    titleContentColor = c.green,
+                    actionIconContentColor = c.green
+                )
             )
         },
         containerColor = c.background
@@ -231,16 +237,26 @@ private fun LeagueHeader(
     onTogglePin: () -> Unit
 ) {
     val c = LocalAppColors.current
+    val accent = when {
+        isPinned -> c.pinGold
+        isTop -> c.green
+        else -> c.blueAccent
+    }
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(c.card)
-            .padding(horizontal = 8.dp, vertical = 6.dp),
+            .background(c.card),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        Box(
+            Modifier
+                .width(4.dp)
+                .height(40.dp)
+                .background(accent)
+        )
         IconButton(
             onClick = onTogglePin,
-            modifier = Modifier.size(32.dp)
+            modifier = Modifier.size(36.dp)
         ) {
             Icon(
                 imageVector = Icons.Filled.Star,
@@ -254,11 +270,11 @@ private fun LeagueHeader(
             color = when {
                 isPinned -> c.pinGold
                 isTop -> c.green
-                else -> c.textSecondary
+                else -> c.textPrimary
             },
-            fontSize = 12.sp,
+            fontSize = 13.sp,
             fontWeight = FontWeight.Bold,
-            modifier = Modifier.weight(1f)
+            modifier = Modifier.weight(1f).padding(end = 12.dp)
         )
     }
 }
@@ -287,8 +303,8 @@ private fun FilterChip(
         Text(
             text = text,
             color = if (selected) {
-                if (c.isDark) c.background else Color.White
-            } else c.textPrimary,
+                Color.White
+            } else if (isLive) c.redLive else c.textPrimary,
             fontSize = 13.sp,
             fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
         )
