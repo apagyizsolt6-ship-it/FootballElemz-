@@ -107,7 +107,7 @@ class MatchDetailViewModel @Inject constructor(
                     aiAnalysis = cached,
                     isAiLoading = false,
                     aiError = null,
-                    selectedTab = if (fromAuto) _uiState.value.selectedTab else 4
+                    selectedTab = if (fromAuto) _uiState.value.selectedTab else 5
                 )
                 return
             }
@@ -117,7 +117,7 @@ class MatchDetailViewModel @Inject constructor(
             _uiState.value = _uiState.value.copy(
                 isAiLoading = true,
                 aiError = null,
-                selectedTab = if (fromAuto) _uiState.value.selectedTab else 4
+                selectedTab = if (fromAuto) _uiState.value.selectedTab else 5
             )
 
             val result = llmService.analyzeMatch(match, extra)

@@ -62,7 +62,7 @@ fun MatchDetailScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val c = LocalAppColors.current
-    val tabs = listOf("Áttekintés", "Statisztika", "Felállás", "Highlightok", "AI")
+    val tabs = listOf("Áttekintés", "Események", "Statisztika", "Felállás", "Highlightok", "AI")
 
     Scaffold(
         topBar = {
@@ -140,10 +140,11 @@ fun MatchDetailScreen(
                             match = uiState.match!!,
                             onAiClick = { viewModel.generateAiAnalysis(fromAuto = false) }
                         )
-                        1 -> StatsTab(uiState.extra)
-                        2 -> LineupsTab(uiState.extra)
-                        3 -> HighlightsTab(uiState.extra)
-                        4 -> AiTab(
+                        1 -> EventsTab(uiState.extra)
+                        2 -> StatsTab(uiState.extra)
+                        3 -> LineupsTab(uiState.extra)
+                        4 -> HighlightsTab(uiState.extra)
+                        5 -> AiTab(
                             uiState = uiState,
                             onGenerate = { viewModel.generateAiAnalysis() },
                             onRegenerate = { viewModel.regenerateAi() }
@@ -254,6 +255,106 @@ private fun OverviewTab(match: Match, onAiClick: () -> Unit) {
             Spacer(Modifier.width(8.dp))
             Text("AI Elemzés indítása", fontWeight = FontWeight.Bold)
         }
+    }
+}
+
+
+@Composable
+private fun EventsTab(extra: MatchExtraData) {
+    val c = LocalAppColors.current
+    if (extra.events.isEmpty()) {
+        EmptyMessage("Nincs esemény.\nÉlő / lejátszott meccsnél jelennek meg a gólok, lapok, cserék.")
+        return
+    }
+
+    Column(
+        Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        extra.events.forEach { event ->
+            EventRow(event)
+        }
+    }
+}
+
+@Composable
+private fun EventRow(event: com.footballai.analyzer.domain.model.MatchEvent) {
+    val c = LocalAppColors.current
+    val typeHu = translateEventType(event.type)
+    val iconColor = when {
+        event.type.contains("Goal", ignoreCase = true) &&
+            !event.type.contains("Cancelled", ignoreCase = true) -> c.green
+        event.type.contains("Red", ignoreCase = true) -> c.redLive
+        event.type.contains("Yellow", ignoreCase = true) -> c.pinGold
+        else -> c.textSecondary
+    }
+
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(c.card)
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = event.minute + "'",
+            color = c.green,
+            fontWeight = FontWeight.Bold,
+            fontSize = 14.sp,
+            modifier = Modifier.width(48.dp)
+        )
+        if (!event.teamLogo.isNullOrBlank()) {
+            AsyncImage(
+                model = event.teamLogo,
+                contentDescription = null,
+                modifier = Modifier.size(24.dp).clip(RoundedCornerShape(4.dp)),
+                contentScale = ContentScale.Fit
+            )
+            Spacer(Modifier.width(8.dp))
+        }
+        Column(Modifier.weight(1f)) {
+            Text(typeHu, color = iconColor, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+            val detail = buildString {
+                if (!event.player.isNullOrBlank()) append(event.player)
+                if (!event.assist.isNullOrBlank()) {
+                    if (isNotEmpty()) append(" · gólpassz: ")
+                    append(event.assist)
+                }
+                if (!event.substituted.isNullOrBlank()) {
+                    if (isNotEmpty()) append(" · ki: ")
+                    append(event.substituted)
+                }
+                if (!event.teamName.isNullOrBlank() && event.player.isNullOrBlank()) {
+                    append(event.teamName)
+                }
+            }
+            if (detail.isNotBlank()) {
+                Text(detail, color = c.textPrimary, fontSize = 13.sp)
+            }
+        }
+    }
+}
+
+private fun translateEventType(type: String): String {
+    val t = type.lowercase()
+    return when {
+        t == "goal" -> "Gól"
+        t == "own goal" -> "Öngól"
+        t == "penalty" -> "11-es gól"
+        t.contains("missed penalty") -> "11-es kihagyva"
+        t.contains("yellow") -> "Sárga lap"
+        t.contains("red") -> "Piros lap"
+        t.contains("substitution") -> "Csere"
+        t.contains("var goal confirmed") -> "VAR: gól érvényes"
+        t.contains("var goal cancelled") && t.contains("offside") -> "VAR: les"
+        t.contains("var goal cancelled") -> "VAR: gól érvénytelen"
+        t.contains("var penalty cancelled") -> "VAR: 11-es érvénytelen"
+        t.contains("var penalty") -> "VAR: 11-es"
+        else -> type
     }
 }
 
@@ -373,28 +474,197 @@ private fun LineupsTab(extra: MatchExtraData) {
         verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
         extra.lineups.forEach { team ->
-            Text(
-                team.teamName + if (team.formation != null) " (" + team.formation + ")" else "",
-                color = c.green,
-                fontWeight = FontWeight.Bold,
-                fontSize = 15.sp
-            )
-            Text("Kezdő", color = c.textSecondary, fontSize = 12.sp)
-            team.starters.forEach { p ->
-                val num = p.number?.toString() ?: "-"
-                val pos = p.position ?: ""
-                Text("$num  ${p.name}  $pos", color = c.textPrimary, fontSize = 13.sp)
-            }
+            PitchLineup(team)
             if (team.substitutes.isNotEmpty()) {
-                Spacer(Modifier.height(8.dp))
-                Text("Csere", color = c.textSecondary, fontSize = 12.sp)
+                Text("Cserepad", color = c.textSecondary, fontSize = 12.sp, fontWeight = FontWeight.Medium)
                 team.substitutes.forEach { p ->
-                    val num = p.number?.toString() ?: "-"
-                    Text("$num  ${p.name}", color = c.textPrimary, fontSize = 13.sp)
+                    BenchPlayerRow(p)
                 }
             }
             HorizontalDivider(color = c.card)
         }
+    }
+}
+
+@Composable
+private fun PitchLineup(team: com.footballai.analyzer.domain.model.TeamLineup) {
+    val c = LocalAppColors.current
+    val pitchGreen = Color(0xFF1B5E20)
+    val pitchLine = Color(0x33FFFFFF)
+
+    Column {
+        Row(
+            Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            if (!team.teamLogo.isNullOrBlank()) {
+                AsyncImage(
+                    model = team.teamLogo,
+                    contentDescription = null,
+                    modifier = Modifier.size(28.dp).clip(RoundedCornerShape(4.dp)),
+                    contentScale = ContentScale.Fit
+                )
+            }
+            Text(
+                text = team.teamName + if (team.formation != null) " · " + team.formation else "",
+                color = c.green,
+                fontWeight = FontWeight.Bold,
+                fontSize = 15.sp
+            )
+        }
+        Spacer(Modifier.height(10.dp))
+
+        val rows = if (team.formationRows.isNotEmpty()) {
+            team.formationRows
+        } else if (team.starters.isNotEmpty()) {
+            listOf(team.starters)
+        } else {
+            emptyList()
+        }
+
+        if (rows.isNotEmpty()) {
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(pitchGreen)
+                    .padding(vertical = 12.dp, horizontal = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                rows.forEach { row ->
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        row.forEach { player ->
+                            PitchPlayer(player)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PitchPlayer(player: com.footballai.analyzer.domain.model.Player) {
+    val c = LocalAppColors.current
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.width(64.dp)
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            if (!player.photoUrl.isNullOrBlank()) {
+                AsyncImage(
+                    model = player.photoUrl,
+                    contentDescription = player.name,
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(Color.White.copy(alpha = 0.15f)),
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                Box(
+                    Modifier
+                        .size(40.dp)
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(Color.White.copy(alpha = 0.2f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = player.number?.toString() ?: "?",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp
+                    )
+                }
+            }
+            // mezszám badge
+            if (player.number != null && !player.photoUrl.isNullOrBlank()) {
+                Box(
+                    Modifier
+                        .align(Alignment.BottomEnd)
+                        .size(16.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(c.green),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        player.number.toString(),
+                        color = if (c.isDark) c.background else Color.White,
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+        Spacer(Modifier.height(4.dp))
+        Text(
+            text = shortName(player.name),
+            color = Color.White,
+            fontSize = 10.sp,
+            textAlign = TextAlign.Center,
+            maxLines = 2,
+            lineHeight = 12.sp
+        )
+        val pos = com.footballai.analyzer.util.StatTranslator.position(player.position)
+        if (pos.isNotBlank()) {
+            Text(pos, color = Color.White.copy(alpha = 0.7f), fontSize = 9.sp)
+        }
+    }
+}
+
+@Composable
+private fun BenchPlayerRow(player: com.footballai.analyzer.domain.model.Player) {
+    val c = LocalAppColors.current
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            Modifier
+                .size(28.dp)
+                .clip(RoundedCornerShape(14.dp))
+                .background(c.card),
+            contentAlignment = Alignment.Center
+        ) {
+            if (!player.photoUrl.isNullOrBlank()) {
+                AsyncImage(
+                    model = player.photoUrl,
+                    contentDescription = null,
+                    modifier = Modifier.size(28.dp).clip(RoundedCornerShape(14.dp)),
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                Text(
+                    player.number?.toString() ?: "-",
+                    color = c.textPrimary,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+        Spacer(Modifier.width(10.dp))
+        Text(player.name, color = c.textPrimary, fontSize = 13.sp, modifier = Modifier.weight(1f))
+        Text(
+            com.footballai.analyzer.util.StatTranslator.position(player.position),
+            color = c.textSecondary,
+            fontSize = 12.sp
+        )
+    }
+}
+
+private fun shortName(full: String): String {
+    val parts = full.trim().split(" ").filter { it.isNotBlank() }
+    return when {
+        parts.size >= 2 -> parts.last()
+        parts.size == 1 -> parts[0]
+        else -> full
     }
 }
 
