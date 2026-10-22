@@ -37,6 +37,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
@@ -47,12 +48,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.footballai.analyzer.domain.model.Match
 import com.footballai.analyzer.domain.model.MatchExtraData
-import com.footballai.analyzer.ui.theme.DarkBackground
-import com.footballai.analyzer.ui.theme.DarkCard
-import com.footballai.analyzer.ui.theme.GreenPrimary
-import com.footballai.analyzer.ui.theme.RedLive
-import com.footballai.analyzer.ui.theme.TextPrimary
-import com.footballai.analyzer.ui.theme.TextSecondary
+import com.footballai.analyzer.ui.theme.LocalAppColors
 import java.time.OffsetDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -65,27 +61,28 @@ fun MatchDetailScreen(
     viewModel: MatchDetailViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val c = LocalAppColors.current
     val tabs = listOf("Áttekintés", "Statisztika", "Felállás", "Highlightok", "AI")
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
-                    Text("Meccs részletei", fontWeight = FontWeight.Bold, color = TextPrimary)
+                    Text("Meccs részletei", fontWeight = FontWeight.Bold, color = c.textPrimary)
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Vissza",
-                            tint = TextPrimary
+                            tint = c.textPrimary
                         )
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = DarkBackground)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = c.background)
             )
         },
-        containerColor = DarkBackground
+        containerColor = c.background
     ) { padding ->
         when {
             uiState.isLoading -> {
@@ -93,7 +90,7 @@ fun MatchDetailScreen(
                     Modifier.fillMaxSize().padding(padding),
                     contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator(color = GreenPrimary)
+                    CircularProgressIndicator(color = c.green)
                 }
             }
             uiState.error != null -> {
@@ -101,7 +98,7 @@ fun MatchDetailScreen(
                     Modifier.fillMaxSize().padding(padding),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(uiState.error ?: "", color = TextSecondary)
+                    Text(uiState.error ?: "", color = c.textSecondary)
                 }
             }
             uiState.match != null -> {
@@ -122,13 +119,15 @@ fun MatchDetailScreen(
                             Box(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(16.dp))
-                                    .background(if (selected) GreenPrimary else DarkCard)
+                                    .background(if (selected) c.green else c.card)
                                     .clickable { viewModel.selectTab(index) }
                                     .padding(horizontal = 14.dp, vertical = 8.dp)
                             ) {
                                 Text(
                                     text = title,
-                                    color = if (selected) DarkBackground else TextPrimary,
+                                    color = if (selected) {
+                                        if (c.isDark) c.background else Color.White
+                                    } else c.textPrimary,
                                     fontSize = 13.sp,
                                     fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
                                 )
@@ -158,6 +157,7 @@ fun MatchDetailScreen(
 
 @Composable
 private fun OverviewTab(match: Match, onAiClick: () -> Unit) {
+    val c = LocalAppColors.current
     Column(
         Modifier
             .fillMaxSize()
@@ -168,14 +168,14 @@ private fun OverviewTab(match: Match, onAiClick: () -> Unit) {
             Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text(match.leagueName, color = TextSecondary, fontSize = 13.sp)
+            Text(match.leagueName, color = c.textSecondary, fontSize = 13.sp)
             Text(
                 text = if (match.isLive) {
                     "ÉLŐ " + (match.minute?.toString() ?: "") + "'"
                 } else {
                     translateStatus(match.status)
                 },
-                color = if (match.isLive) RedLive else TextSecondary,
+                color = if (match.isLive) c.redLive else c.textSecondary,
                 fontSize = 13.sp,
                 fontWeight = if (match.isLive) FontWeight.Bold else FontWeight.Normal
             )
@@ -188,7 +188,7 @@ private fun OverviewTab(match: Match, onAiClick: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f)) {
                 AsyncImage(
                     model = match.homeTeamLogo,
                     contentDescription = null,
@@ -198,7 +198,7 @@ private fun OverviewTab(match: Match, onAiClick: () -> Unit) {
                 Spacer(Modifier.height(8.dp))
                 Text(
                     match.homeTeamName,
-                    color = TextPrimary,
+                    color = c.textPrimary,
                     fontWeight = FontWeight.SemiBold,
                     textAlign = TextAlign.Center,
                     fontSize = 14.sp
@@ -207,12 +207,12 @@ private fun OverviewTab(match: Match, onAiClick: () -> Unit) {
 
             Text(
                 match.score.replace("-", " - "),
-                color = GreenPrimary,
+                color = c.green,
                 fontWeight = FontWeight.Bold,
                 fontSize = 28.sp
             )
 
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f)) {
                 AsyncImage(
                     model = match.awayTeamLogo,
                     contentDescription = null,
@@ -222,7 +222,7 @@ private fun OverviewTab(match: Match, onAiClick: () -> Unit) {
                 Spacer(Modifier.height(8.dp))
                 Text(
                     match.awayTeamName,
-                    color = TextPrimary,
+                    color = c.textPrimary,
                     fontWeight = FontWeight.SemiBold,
                     textAlign = TextAlign.Center,
                     fontSize = 14.sp
@@ -233,7 +233,7 @@ private fun OverviewTab(match: Match, onAiClick: () -> Unit) {
         Spacer(Modifier.height(16.dp))
         Text(
             text = "Kezdés: " + formatKickoff(match.date),
-            color = TextSecondary,
+            color = c.textSecondary,
             fontSize = 13.sp,
             modifier = Modifier.fillMaxWidth(),
             textAlign = TextAlign.Center
@@ -246,8 +246,8 @@ private fun OverviewTab(match: Match, onAiClick: () -> Unit) {
             modifier = Modifier.fillMaxWidth().height(52.dp),
             shape = RoundedCornerShape(14.dp),
             colors = ButtonDefaults.buttonColors(
-                containerColor = GreenPrimary,
-                contentColor = DarkBackground
+                containerColor = c.green,
+                contentColor = if (c.isDark) c.background else Color.White
             )
         ) {
             Icon(Icons.Default.Star, contentDescription = null, modifier = Modifier.size(20.dp))
@@ -259,6 +259,7 @@ private fun OverviewTab(match: Match, onAiClick: () -> Unit) {
 
 @Composable
 private fun StatsTab(extra: MatchExtraData) {
+    val c = LocalAppColors.current
     if (extra.statistics.isEmpty()) {
         EmptyMessage("Nincs elérhető statisztika.\nA meccs kezdete után jelennek meg az adatok.")
         return
@@ -276,29 +277,25 @@ private fun StatsTab(extra: MatchExtraData) {
 
         if (home != null && away != null) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(home.teamName, color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                Text(away.teamName, color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                Text(home.teamName, color = c.textPrimary, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                Text(away.teamName, color = c.textPrimary, fontWeight = FontWeight.Bold, fontSize = 13.sp)
             }
             Spacer(Modifier.height(12.dp))
             keys.forEach { key ->
                 val hv = home.stats[key] ?: "-"
                 val av = away.stats[key] ?: "-"
-                Column(Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
-                    Text(key, color = TextSecondary, fontSize = 12.sp, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text(hv, color = TextPrimary, fontWeight = FontWeight.SemiBold)
-                        Text(av, color = TextPrimary, fontWeight = FontWeight.SemiBold)
-                    }
-                    HorizontalDivider(color = DarkCard, modifier = Modifier.padding(top = 6.dp))
-                }
+                StatBarRow(label = key, homeValue = hv, awayValue = av)
             }
         } else {
             extra.statistics.forEach { team ->
-                Text(team.teamName, color = GreenPrimary, fontWeight = FontWeight.Bold)
+                Text(team.teamName, color = c.green, fontWeight = FontWeight.Bold)
                 team.stats.forEach { (k, v) ->
-                    Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text(k, color = TextSecondary)
-                        Text(v, color = TextPrimary)
+                    Row(
+                        Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(k, color = c.textSecondary)
+                        Text(v, color = c.textPrimary)
                     }
                 }
                 Spacer(Modifier.height(16.dp))
@@ -308,7 +305,61 @@ private fun StatsTab(extra: MatchExtraData) {
 }
 
 @Composable
+private fun StatBarRow(label: String, homeValue: String, awayValue: String) {
+    val c = LocalAppColors.current
+    val hNum = homeValue.replace("%", "").replace(",", ".").toFloatOrNull()
+    val aNum = awayValue.replace("%", "").replace(",", ".").toFloatOrNull()
+    val total = if (hNum != null && aNum != null && (hNum + aNum) > 0f) hNum + aNum else null
+    val hRatio = if (total != null) (hNum!! / total).coerceIn(0f, 1f) else 0.5f
+
+    Column(Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+        Text(
+            label,
+            color = c.textSecondary,
+            fontSize = 12.sp,
+            modifier = Modifier.fillMaxWidth(),
+            textAlign = TextAlign.Center
+        )
+        Spacer(Modifier.height(4.dp))
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(homeValue, color = c.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+            Text(awayValue, color = c.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+        }
+        if (total != null) {
+            Spacer(Modifier.height(6.dp))
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .height(6.dp)
+                    .clip(RoundedCornerShape(3.dp))
+                    .background(c.surface)
+            ) {
+                Box(
+                    Modifier
+                        .fillMaxWidth(hRatio)
+                        .height(6.dp)
+                        .background(c.green)
+                )
+                Box(
+                    Modifier
+                        .weight(1f)
+                        .height(6.dp)
+                        .background(c.redLive.copy(alpha = 0.7f))
+                )
+            }
+        } else {
+            HorizontalDivider(color = c.card, modifier = Modifier.padding(top = 6.dp))
+        }
+    }
+}
+
+@Composable
 private fun LineupsTab(extra: MatchExtraData) {
+    val c = LocalAppColors.current
     if (extra.lineups.isEmpty()) {
         EmptyMessage("Nincs elérhető felállás.\nÁltalában a kezdés előtt ~40 perccel jelenik meg.")
         return
@@ -324,31 +375,32 @@ private fun LineupsTab(extra: MatchExtraData) {
         extra.lineups.forEach { team ->
             Text(
                 team.teamName + if (team.formation != null) " (" + team.formation + ")" else "",
-                color = GreenPrimary,
+                color = c.green,
                 fontWeight = FontWeight.Bold,
                 fontSize = 15.sp
             )
-            Text("Kezdő", color = TextSecondary, fontSize = 12.sp)
+            Text("Kezdő", color = c.textSecondary, fontSize = 12.sp)
             team.starters.forEach { p ->
                 val num = p.number?.toString() ?: "-"
                 val pos = p.position ?: ""
-                Text("$num  ${p.name}  $pos", color = TextPrimary, fontSize = 13.sp)
+                Text("$num  ${p.name}  $pos", color = c.textPrimary, fontSize = 13.sp)
             }
             if (team.substitutes.isNotEmpty()) {
                 Spacer(Modifier.height(8.dp))
-                Text("Csere", color = TextSecondary, fontSize = 12.sp)
+                Text("Csere", color = c.textSecondary, fontSize = 12.sp)
                 team.substitutes.forEach { p ->
                     val num = p.number?.toString() ?: "-"
-                    Text("$num  ${p.name}", color = TextPrimary, fontSize = 13.sp)
+                    Text("$num  ${p.name}", color = c.textPrimary, fontSize = 13.sp)
                 }
             }
-            HorizontalDivider(color = DarkCard)
+            HorizontalDivider(color = c.card)
         }
     }
 }
 
 @Composable
 private fun HighlightsTab(extra: MatchExtraData) {
+    val c = LocalAppColors.current
     if (extra.highlights.isEmpty()) {
         EmptyMessage("Nincs elérhető highlight.\nVideók a meccs után kerülnek fel.")
         return
@@ -367,7 +419,7 @@ private fun HighlightsTab(extra: MatchExtraData) {
                 Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(12.dp))
-                    .background(DarkCard)
+                    .background(c.card)
                     .clickable {
                         if (!h.url.isNullOrBlank()) {
                             uriHandler.openUri(h.url)
@@ -385,7 +437,7 @@ private fun HighlightsTab(extra: MatchExtraData) {
                     )
                     Spacer(Modifier.width(12.dp))
                 }
-                Text(h.title, color = TextPrimary, fontSize = 14.sp)
+                Text(h.title, color = c.textPrimary, fontSize = 14.sp)
             }
         }
     }
@@ -397,6 +449,7 @@ private fun AiTab(
     onGenerate: () -> Unit,
     onRegenerate: () -> Unit
 ) {
+    val c = LocalAppColors.current
     Column(
         Modifier
             .fillMaxSize()
@@ -410,7 +463,7 @@ private fun AiTab(
                     contentAlignment = Alignment.Center
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        CircularProgressIndicator(color = GreenPrimary)
+                        CircularProgressIndicator(color = c.green)
                         Spacer(Modifier.height(12.dp))
                         Text(
                             text = if (uiState.autoAiEligible) {
@@ -418,20 +471,20 @@ private fun AiTab(
                             } else {
                                 "AI elemzés..."
                             },
-                            color = TextSecondary,
+                            color = c.textSecondary,
                             fontSize = 13.sp
                         )
                     }
                 }
             }
             uiState.aiError != null && uiState.aiAnalysis == null -> {
-                Text(uiState.aiError ?: "", color = RedLive, fontSize = 13.sp)
+                Text(uiState.aiError ?: "", color = c.redLive, fontSize = 13.sp)
                 Spacer(Modifier.height(12.dp))
                 Button(
                     onClick = onGenerate,
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = GreenPrimary,
-                        contentColor = DarkBackground
+                        containerColor = c.green,
+                        contentColor = if (c.isDark) c.background else Color.White
                     ),
                     shape = RoundedCornerShape(12.dp)
                 ) {
@@ -442,14 +495,14 @@ private fun AiTab(
                 if (uiState.autoAiEligible) {
                     Text(
                         "Top liga / kedvenc – automatikus elemzés",
-                        color = TextSecondary,
+                        color = c.textSecondary,
                         fontSize = 12.sp
                     )
                     Spacer(Modifier.height(8.dp))
                 }
                 Text(
                     uiState.aiAnalysis ?: "",
-                    color = TextPrimary,
+                    color = c.textPrimary,
                     fontSize = 14.sp,
                     lineHeight = 22.sp
                 )
@@ -457,8 +510,8 @@ private fun AiTab(
                 Button(
                     onClick = onRegenerate,
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = DarkCard,
-                        contentColor = TextPrimary
+                        containerColor = c.card,
+                        contentColor = c.textPrimary
                     ),
                     shape = RoundedCornerShape(12.dp)
                 ) {
@@ -472,14 +525,14 @@ private fun AiTab(
                     } else {
                         "Nyomd meg a gombot az AI elemzés generálásához."
                     },
-                    color = TextSecondary
+                    color = c.textSecondary
                 )
                 Spacer(Modifier.height(16.dp))
                 Button(
                     onClick = onGenerate,
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = GreenPrimary,
-                        contentColor = DarkBackground
+                        containerColor = c.green,
+                        contentColor = if (c.isDark) c.background else Color.White
                     ),
                     shape = RoundedCornerShape(12.dp)
                 ) {
@@ -492,10 +545,11 @@ private fun AiTab(
 
 @Composable
 private fun EmptyMessage(text: String) {
+    val c = LocalAppColors.current
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Text(
             text = text,
-            color = TextSecondary,
+            color = c.textSecondary,
             textAlign = TextAlign.Center,
             fontSize = 14.sp,
             lineHeight = 20.sp,
