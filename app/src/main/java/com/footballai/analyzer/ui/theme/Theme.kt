@@ -16,6 +16,10 @@ data class AppColors(
     val textSecondary: Color,
     val green: Color,
     val redLive: Color,
+    val orangeLive: Color,
+    val blueAccent: Color,
+    val purpleAccent: Color,
+    val cyanAccent: Color,
     val liveRow: Color,
     val pinGold: Color,
     val isDark: Boolean
@@ -30,6 +34,10 @@ val LocalAppColors = staticCompositionLocalOf {
         textSecondary = TextSecondaryDark,
         green = GreenPrimary,
         redLive = RedLive,
+        orangeLive = OrangeLive,
+        blueAccent = BlueAccent,
+        purpleAccent = PurpleAccent,
+        cyanAccent = CyanAccent,
         liveRow = LiveRowDark,
         pinGold = PinGold,
         isDark = true
@@ -38,20 +46,26 @@ val LocalAppColors = staticCompositionLocalOf {
 
 private val DarkScheme = darkColorScheme(
     primary = GreenPrimary,
+    secondary = BlueAccent,
+    tertiary = PurpleAccent,
     background = DarkBackground,
     surface = DarkCard,
     onPrimary = DarkBackground,
     onBackground = TextPrimaryDark,
-    onSurface = TextPrimaryDark
+    onSurface = TextPrimaryDark,
+    error = RedLive
 )
 
 private val LightScheme = lightColorScheme(
     primary = GreenDark,
+    secondary = BlueAccent,
+    tertiary = PurpleAccent,
     background = LightBackground,
     surface = LightCard,
     onPrimary = Color.White,
     onBackground = TextPrimaryLight,
-    onSurface = TextPrimaryLight
+    onSurface = TextPrimaryLight,
+    error = RedLive
 )
 
 @Composable
@@ -68,6 +82,10 @@ fun FociElemzoTheme(
             textSecondary = TextSecondaryDark,
             green = GreenPrimary,
             redLive = RedLive,
+            orangeLive = OrangeLive,
+            blueAccent = BlueAccent,
+            purpleAccent = PurpleAccent,
+            cyanAccent = CyanAccent,
             liveRow = LiveRowDark,
             pinGold = PinGold,
             isDark = true
@@ -81,6 +99,10 @@ fun FociElemzoTheme(
             textSecondary = TextSecondaryLight,
             green = GreenDark,
             redLive = RedLive,
+            orangeLive = OrangeLive,
+            blueAccent = BlueAccent,
+            purpleAccent = PurpleAccent,
+            cyanAccent = CyanAccent,
             liveRow = LiveRowLight,
             pinGold = PinGold,
             isDark = false
