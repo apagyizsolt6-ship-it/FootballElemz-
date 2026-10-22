@@ -5,6 +5,7 @@ import com.footballai.analyzer.data.remote.dto.MatchDetailResponse
 import com.footballai.analyzer.data.remote.dto.MatchDto
 import com.footballai.analyzer.domain.model.Highlight
 import com.footballai.analyzer.domain.model.Match
+import com.footballai.analyzer.domain.model.MatchEvent
 import com.footballai.analyzer.domain.model.MatchExtraData
 import com.footballai.analyzer.domain.model.Player
 import com.footballai.analyzer.domain.model.TeamLineup
@@ -66,7 +67,7 @@ class MatchRepository @Inject constructor(
                 TeamStat(
                     teamName = teamDto.team?.name ?: "Csapat",
                     stats = teamDto.statistics.associate { item ->
-                        (item.displayName ?: "Stat") to item.valueAsString()
+                        com.footballai.analyzer.util.StatTranslator.stat(item.displayName) to item.valueAsString()
                     }
                 )
             }
@@ -77,33 +78,44 @@ class MatchRepository @Inject constructor(
         val lineups = try {
             val resp = api.getLineups(matchId)
             val result = mutableListOf<TeamLineup>()
+            fun mapPlayer(p: com.footballai.analyzer.data.remote.dto.LineupsPlayerDto): Player {
+                val id = p.id
+                val photo = if (id != null && id > 0) {
+                    "https://highlightly.net/soccer/images/players/" + id + ".png"
+                } else null
+                return Player(
+                    name = p.name ?: "?",
+                    number = p.number,
+                    position = p.position,
+                    id = id,
+                    photoUrl = photo
+                )
+            }
             resp.homeTeam?.let { team ->
-                val starters = team.initialLineup.flatten().map { p ->
-                    Player(p.name ?: "?", p.number, p.position)
-                }
-                val subs = team.substitutes.map { p ->
-                    Player(p.name ?: "?", p.number, p.position)
-                }
+                val rows = team.initialLineup.map { row -> row.map { mapPlayer(it) } }
+                val starters = rows.flatten()
+                val subs = team.substitutes.map { mapPlayer(it) }
                 result.add(
                     TeamLineup(
                         teamName = team.name ?: "Hazai",
+                        teamLogo = team.logo,
                         formation = team.formation,
+                        formationRows = rows,
                         starters = starters,
                         substitutes = subs
                     )
                 )
             }
             resp.awayTeam?.let { team ->
-                val starters = team.initialLineup.flatten().map { p ->
-                    Player(p.name ?: "?", p.number, p.position)
-                }
-                val subs = team.substitutes.map { p ->
-                    Player(p.name ?: "?", p.number, p.position)
-                }
+                val rows = team.initialLineup.map { row -> row.map { mapPlayer(it) } }
+                val starters = rows.flatten()
+                val subs = team.substitutes.map { mapPlayer(it) }
                 result.add(
                     TeamLineup(
                         teamName = team.name ?: "Vendég",
+                        teamLogo = team.logo,
                         formation = team.formation,
+                        formationRows = rows,
                         starters = starters,
                         substitutes = subs
                     )
@@ -127,7 +139,23 @@ class MatchRepository @Inject constructor(
             emptyList()
         }
 
-        return MatchExtraData(stats, lineups, highlights)
+        val events = try {
+            api.getEvents(matchId).map { e ->
+                MatchEvent(
+                    minute = e.time ?: "?",
+                    type = e.type ?: "Event",
+                    player = e.player,
+                    assist = e.assist?.takeIf { it.isNotBlank() },
+                    substituted = e.substituted?.takeIf { it.isNotBlank() },
+                    teamName = e.team?.name,
+                    teamLogo = e.team?.logo
+                )
+            }
+        } catch (_: Exception) {
+            emptyList()
+        }
+
+        return MatchExtraData(stats, lineups, highlights, events)
     }
 
     private fun MatchDto.toDomain(): Match {
