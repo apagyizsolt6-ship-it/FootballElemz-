@@ -30,16 +30,16 @@ class StandingsViewModel @Inject constructor(
     private val leagueId: Long = savedStateHandle["leagueId"] ?: 0L
     private val season: Int = savedStateHandle["season"] ?: 0
     private val titleArg: String = savedStateHandle["title"] ?: "Tabella"
-    private val homeId: Long = savedStateHandle["homeId"] ?: -1L
-    private val awayId: Long = savedStateHandle["awayId"] ?: -1L
+    private val homeId: Long = savedStateHandle["homeId"] ?: 0L
+    private val awayId: Long = savedStateHandle["awayId"] ?: 0L
 
     private val _uiState = MutableStateFlow(
         StandingsUiState(
             title = titleArg,
-            highlightTeamIds = setOfNotNull(
-                homeId.takeIf { it > 0 },
-                awayId.takeIf { it > 0 }
-            )
+            highlightTeamIds = buildSet {
+                if (homeId > 0) add(homeId)
+                if (awayId > 0) add(awayId)
+            }
         )
     )
     val uiState: StateFlow<StandingsUiState> = _uiState.asStateFlow()
