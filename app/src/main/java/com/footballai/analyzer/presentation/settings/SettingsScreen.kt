@@ -207,6 +207,22 @@ fun SettingsScreen(
                 Text("Mentés", fontWeight = FontWeight.Bold)
             }
 
+            Spacer(modifier = Modifier.height(16.dp))
+            Button(
+                onClick = { viewModel.clearCaches() },
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(containerColor = c.surface)
+            ) {
+                Text("Cache törlése", color = c.textPrimary)
+            }
+            Text(
+                "Törli a helyi meccs- és AI-gyorsítótárat. A következő betöltés API-t hív.",
+                color = c.textSecondary,
+                fontSize = 11.sp,
+                modifier = Modifier.padding(top = 6.dp)
+            )
+
+
             if (uiState.message != null) {
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(

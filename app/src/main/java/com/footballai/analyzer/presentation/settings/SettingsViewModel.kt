@@ -2,7 +2,9 @@ package com.footballai.analyzer.presentation.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.footballai.analyzer.data.local.AiAnalysisCache
 import com.footballai.analyzer.data.local.ApiKeyProvider
+import com.footballai.analyzer.data.local.MatchLocalCache
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -20,7 +22,9 @@ data class SettingsUiState(
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
-    private val apiKeyProvider: ApiKeyProvider
+    private val apiKeyProvider: ApiKeyProvider,
+    private val matchCache: MatchLocalCache,
+    private val aiCache: AiAnalysisCache
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SettingsUiState())
@@ -60,6 +64,14 @@ class SettingsViewModel @Inject constructor(
             apiKeyProvider.saveLlmBaseUrl(_uiState.value.llmBaseUrl)
             apiKeyProvider.saveLlmModel(_uiState.value.llmModel)
             _uiState.value = _uiState.value.copy(message = "Minden beállítás elmentve")
+        }
+    }
+
+    fun clearCaches() {
+        viewModelScope.launch {
+            matchCache.clearAll()
+            aiCache.clear()
+            _uiState.value = _uiState.value.copy(message = "Cache törölve (meccsek + AI)")
         }
     }
 }
