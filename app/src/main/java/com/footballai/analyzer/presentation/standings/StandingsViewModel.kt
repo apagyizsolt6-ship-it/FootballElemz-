@@ -17,6 +17,7 @@ data class StandingsUiState(
     val isLoading: Boolean = true,
     val title: String = "Tabella",
     val groups: List<StandingsGroup> = emptyList(),
+    val highlightTeamIds: Set<Long> = emptySet(),
     val error: String? = null
 )
 
@@ -29,13 +30,21 @@ class StandingsViewModel @Inject constructor(
     private val leagueId: Long = savedStateHandle["leagueId"] ?: 0L
     private val season: Int = savedStateHandle["season"] ?: 0
     private val titleArg: String = savedStateHandle["title"] ?: "Tabella"
+    private val homeId: Long = savedStateHandle["homeId"] ?: -1L
+    private val awayId: Long = savedStateHandle["awayId"] ?: -1L
 
-    private val _uiState = MutableStateFlow(StandingsUiState(title = titleArg))
+    private val _uiState = MutableStateFlow(
+        StandingsUiState(
+            title = titleArg,
+            highlightTeamIds = setOfNotNull(
+                homeId.takeIf { it > 0 },
+                awayId.takeIf { it > 0 }
+            )
+        )
+    )
     val uiState: StateFlow<StandingsUiState> = _uiState.asStateFlow()
 
-    init {
-        load()
-    }
+    init { load() }
 
     fun load() {
         viewModelScope.launch {

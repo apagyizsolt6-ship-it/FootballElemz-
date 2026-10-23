@@ -96,11 +96,12 @@ fun StandingsScreen(
                         }
                     }
                     items(group.rows) { row ->
+                        val highlighted = row.teamId != null && row.teamId in ui.highlightTeamIds
                         Row(
                             Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(8.dp))
-                                .background(c.card)
+                                .background(if (highlighted) c.green.copy(alpha = 0.15f) else c.card)
                                 .padding(horizontal = 8.dp, vertical = 8.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
