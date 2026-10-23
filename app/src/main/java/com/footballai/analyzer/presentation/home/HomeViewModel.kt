@@ -2,6 +2,7 @@ package com.footballai.analyzer.presentation.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.footballai.analyzer.data.local.AiAnalysisCache
 import com.footballai.analyzer.data.local.UserPreferences
 import com.footballai.analyzer.data.repository.MatchRepository
 import com.footballai.analyzer.domain.model.Match
@@ -39,13 +40,15 @@ data class HomeUiState(
     val leagueGroups: List<LeagueGroup> = emptyList(),
     val totalMatchCount: Int = 0,
     val filteredMatchCount: Int = 0,
+    val hasLiveOnSelectedDate: Boolean = false,
     val error: String? = null
 )
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val repository: MatchRepository,
-    private val userPreferences: UserPreferences
+    private val userPreferences: UserPreferences,
+    private val aiCache: AiAnalysisCache
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HomeUiState())
@@ -69,6 +72,8 @@ class HomeViewModel @Inject constructor(
         }
         loadMatches()
     }
+
+    fun aiPreview(matchId: Long): String? = aiCache.get(matchId)?.lineSequence()?.firstOrNull()?.trim()
 
     fun selectDate(date: LocalDate) {
         if (date == _uiState.value.selectedDate) return
@@ -107,11 +112,7 @@ class HomeViewModel @Inject constructor(
     fun loadMatches(isRefresh: Boolean = false) {
         viewModelScope.launch {
             _uiState.update {
-                it.copy(
-                    isLoading = !isRefresh,
-                    isRefreshing = isRefresh,
-                    error = null
-                )
+                it.copy(isLoading = !isRefresh, isRefreshing = isRefresh, error = null)
             }
             val result = repository.getMatchesForDate(
                 _uiState.value.selectedDate,
@@ -124,7 +125,8 @@ class HomeViewModel @Inject constructor(
                     it.copy(
                         isLoading = false,
                         isRefreshing = false,
-                        totalMatchCount = allMatches.size
+                        totalMatchCount = allMatches.size,
+                        hasLiveOnSelectedDate = allMatches.any { m -> m.isLive }
                     )
                 }
                 restartLivePolling()
@@ -133,7 +135,7 @@ class HomeViewModel @Inject constructor(
                     it.copy(
                         isLoading = false,
                         isRefreshing = false,
-                        error = result.exceptionOrNull()?.message ?: "Hiba a betöltéskor"
+                        error = result.exceptionOrNull()?.message ?: "Nem sikerült betölteni a meccseket."
                     )
                 }
             }
@@ -142,12 +144,11 @@ class HomeViewModel @Inject constructor(
 
     private fun restartLivePolling() {
         livePollJob?.cancel()
-        val hasLive = allMatches.any { it.isLive }
-        if (!hasLive) return
+        if (allMatches.none { it.isLive }) return
         livePollJob = viewModelScope.launch {
             while (isActive) {
-                delay(50_000L) // ~50 mp
-                if (!allMatches.any { it.isLive }) break
+                delay(50_000L)
+                if (allMatches.none { it.isLive }) break
                 val result = repository.getMatchesForDate(
                     _uiState.value.selectedDate,
                     forceRefresh = true
@@ -155,7 +156,12 @@ class HomeViewModel @Inject constructor(
                 if (result.isSuccess) {
                     allMatches = result.getOrDefault(emptyList())
                     applyFilterAndGroup()
-                    _uiState.update { it.copy(totalMatchCount = allMatches.size) }
+                    _uiState.update {
+                        it.copy(
+                            totalMatchCount = allMatches.size,
+                            hasLiveOnSelectedDate = allMatches.any { m -> m.isLive }
+                        )
+                    }
                     if (allMatches.none { it.isLive }) break
                 }
             }
@@ -194,17 +200,14 @@ class HomeViewModel @Inject constructor(
             }
         }
 
-        // header per match
-        data class Key(val header: String, val match: Match)
         val keyed = list.map { m ->
-            val header = LeagueTranslator.formatHeader(m.countryName, m.leagueName)
-            Key(header, m)
+            LeagueTranslator.formatHeader(m.countryName, m.leagueName) to m
         }
 
-        var groups = keyed.groupBy { it.header }.map { (header, items) ->
+        var groups = keyed.groupBy { it.first }.map { (header, items) ->
             LeagueGroup(
                 leagueName = header,
-                matches = items.map { it.match },
+                matches = items.map { it.second },
                 isPinned = header in state.pinnedLeagues
             )
         }
@@ -215,12 +218,6 @@ class HomeViewModel @Inject constructor(
             }
         }
 
-        groups = groups.sortedWith(
-            compareBy<LeagueGroup> { if (it.isPinned) 0 else 1 }
-                .thenBy { LeagueTranslator.topLeaguePriority(it.leagueName) }
-                .thenBy { LeagueTranslator.compareHeaders(it.leagueName, it.leagueName) }
-        )
-        // proper ABC for non-top
         groups = groups.sortedWith { a, b ->
             val ap = if (a.isPinned) 0 else 1
             val bp = if (b.isPinned) 0 else 1
@@ -231,9 +228,11 @@ class HomeViewModel @Inject constructor(
             LeagueTranslator.compareHeaders(a.leagueName, b.leagueName)
         }
 
-        val count = groups.sumOf { it.matches.size }
         _uiState.update {
-            it.copy(leagueGroups = groups, filteredMatchCount = count)
+            it.copy(
+                leagueGroups = groups,
+                filteredMatchCount = groups.sumOf { g -> g.matches.size }
+            )
         }
     }
 }

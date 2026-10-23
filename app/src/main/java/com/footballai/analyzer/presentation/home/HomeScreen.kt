@@ -118,9 +118,10 @@ fun HomeScreen(
                             "$day/$mon $wd"
                         }
                     }
-                    FilterChip(
+                    DateChip(
                         text = label,
                         selected = uiState.selectedDate == date,
+                        showLiveDot = (date == uiState.selectedDate && uiState.hasLiveOnSelectedDate),
                         onClick = { viewModel.selectDate(date) }
                     )
                 }
@@ -215,7 +216,21 @@ fun HomeScreen(
                         onRefresh = { viewModel.loadMatches(isRefresh = true) },
                         modifier = Modifier.fillMaxSize()
                     ) {
-                        LazyColumn(
+                        if (uiState.leagueGroups.isEmpty()) {
+                            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                Text(
+                                    text = when {
+                                        uiState.searchQuery.isNotBlank() -> "Nincs találat erre a keresésre."
+                                        uiState.onlyFavorites -> "Nincs kedvenc csapat meccse ezen a napon.\nJelöld csillaggal a csapatokat a listában."
+                                        uiState.filter == MatchFilter.LIVE -> "Most nincs élő meccs."
+                                        else -> "Nincs megjeleníthető meccs erre a napra."
+                                    },
+                                    color = c.textSecondary,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.padding(32.dp)
+                                )
+                            }
+                        } else LazyColumn(
                             contentPadding = PaddingValues(bottom = 24.dp),
                             modifier = Modifier.fillMaxSize()
                         ) {
@@ -237,7 +252,10 @@ fun HomeScreen(
                                 items(group.matches, key = { it.id }) { match ->
                                     MatchRow(
                                         match = match,
-                                        onClick = { onMatchClick(match.id) }
+                                        onClick = { onMatchClick(match.id) },
+                                        favoriteTeams = uiState.favoriteTeams,
+                                        onToggleFavorite = { viewModel.toggleFavoriteTeam(it) },
+                                        aiPreview = viewModel.aiPreview(match.id)
                                     )
                                 }
                             }
@@ -297,6 +315,41 @@ private fun LeagueHeader(
                 .padding(end = 12.dp)
                 .clickable { onOpenStandings() }
         )
+    }
+}
+
+@Composable
+private fun DateChip(
+    text: String,
+    selected: Boolean,
+    showLiveDot: Boolean,
+    onClick: () -> Unit
+) {
+    val c = LocalAppColors.current
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(16.dp))
+            .background(if (selected) c.green else c.card)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 8.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            if (showLiveDot) {
+                Box(
+                    Modifier
+                        .size(7.dp)
+                        .clip(CircleShape)
+                        .background(if (selected) Color.White else c.redLive)
+                )
+                Spacer(Modifier.width(6.dp))
+            }
+            Text(
+                text = text,
+                color = if (selected) Color.White else c.textPrimary,
+                fontSize = 13.sp,
+                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
+            )
+        }
     }
 }
 
