@@ -17,12 +17,22 @@ import javax.inject.Singleton
 
 @Singleton
 class MatchRepository @Inject constructor(
-    private val api: HighlightlyApi
+    private val api: HighlightlyApi,
+    private val cache: com.footballai.analyzer.data.local.MatchLocalCache
 ) {
 
-    suspend fun getMatchesForDate(date: LocalDate): Result<List<Match>> {
+    suspend fun getMatchesForDate(
+        date: LocalDate,
+        forceRefresh: Boolean = false
+    ): Result<List<Match>> {
+        val dateKey = date.format(DateTimeFormatter.ISO_LOCAL_DATE)
+        if (!forceRefresh) {
+            cache.getMatches(dateKey)?.let { return Result.success(it) }
+        } else {
+            cache.invalidateDate(dateKey)
+        }
+
         return try {
-            val dateStr = date.format(DateTimeFormatter.ISO_LOCAL_DATE)
             val allMatches = mutableListOf<MatchDto>()
             var offset = 0
             val pageSize = 100
@@ -30,7 +40,7 @@ class MatchRepository @Inject constructor(
 
             repeat(maxPages) {
                 val response = api.getMatches(
-                    date = dateStr,
+                    date = dateKey,
                     timezone = "Europe/Budapest",
                     limit = pageSize,
                     offset = offset
@@ -43,24 +53,57 @@ class MatchRepository @Inject constructor(
                 if (offset >= total || page.size < pageSize) return@repeat
             }
 
-            Result.success(allMatches.map { it.toDomain() })
+            val domain = allMatches.map { it.toDomain() }
+            val hasLive = domain.any { it.isLive }
+            val today = LocalDate.now()
+            val ttl = when {
+                hasLive -> com.footballai.analyzer.data.local.MatchLocalCache.TTL_LIVE_MS
+                date.isBefore(today) -> com.footballai.analyzer.data.local.MatchLocalCache.TTL_PAST_MS
+                date.isAfter(today) -> com.footballai.analyzer.data.local.MatchLocalCache.TTL_FUTURE_MS
+                else -> com.footballai.analyzer.data.local.MatchLocalCache.TTL_TODAY_MS
+            }
+            cache.putMatches(dateKey, domain, ttl)
+            Result.success(domain)
         } catch (e: Exception) {
+            // hálózat hiba: próbáljunk lejárt cache-t is? csak friss cache van a getMatches-ben
+            cache.getMatches(dateKey)?.let { return Result.success(it) }
             Result.failure(e)
         }
     }
 
-    suspend fun getMatchById(id: Long): Result<Match> {
+    suspend fun getMatchById(id: Long, forceRefresh: Boolean = false): Result<Match> {
+        if (!forceRefresh) {
+            cache.getMatch(id)?.let { return Result.success(it) }
+        }
         return try {
             val response = api.getMatchById(id)
             val matchDto = response.firstOrNull()
                 ?: return Result.failure(Exception("Meccs nem található"))
-            Result.success(matchDto.toDomain())
+            val domain = matchDto.toDomain()
+            val ttl = if (domain.isLive) {
+                com.footballai.analyzer.data.local.MatchLocalCache.TTL_LIVE_MS
+            } else {
+                com.footballai.analyzer.data.local.MatchLocalCache.TTL_MATCH_MS
+            }
+            cache.putMatch(domain, ttl)
+            Result.success(domain)
         } catch (e: Exception) {
+            cache.getMatch(id)?.let { return Result.success(it) }
             Result.failure(e)
         }
     }
 
-    suspend fun getMatchExtraData(matchId: Long): MatchExtraData {
+    suspend fun getMatchExtraData(
+        matchId: Long,
+        forceRefresh: Boolean = false,
+        isLiveHint: Boolean = false
+    ): MatchExtraData {
+        if (!forceRefresh) {
+            cache.getExtra(matchId)?.let { return it }
+        } else {
+            cache.invalidateMatch(matchId)
+        }
+
         val stats = try {
             val list = api.getStatistics(matchId)
             list.map { teamDto ->
@@ -155,7 +198,14 @@ class MatchRepository @Inject constructor(
             emptyList()
         }
 
-        return MatchExtraData(stats, lineups, highlights, events)
+        val extra = MatchExtraData(stats, lineups, highlights, events)
+        val ttl = when {
+            isLiveHint -> com.footballai.analyzer.data.local.MatchLocalCache.TTL_EXTRA_LIVE_MS
+            events.isNotEmpty() || stats.isNotEmpty() -> com.footballai.analyzer.data.local.MatchLocalCache.TTL_EXTRA_FINISHED_MS
+            else -> com.footballai.analyzer.data.local.MatchLocalCache.TTL_EXTRA_OPEN_MS
+        }
+        cache.putExtra(matchId, extra, ttl)
+        return extra
     }
 
     private fun MatchDto.toDomain(): Match {
