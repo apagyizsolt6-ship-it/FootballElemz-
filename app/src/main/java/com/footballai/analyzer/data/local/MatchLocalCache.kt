@@ -86,6 +86,13 @@ class MatchLocalCache @Inject constructor(
         File(dir, "matches_$dateKey.json").delete()
     }
 
+    fun clearAll() {
+        memMatches.clear()
+        memExtra.clear()
+        memMatch.clear()
+        dir.listFiles()?.forEach { it.delete() }
+    }
+
     fun invalidateMatch(matchId: Long) {
         memExtra.remove(matchId)
         memMatch.remove(matchId)
