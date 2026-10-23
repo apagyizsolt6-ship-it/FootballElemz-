@@ -138,6 +138,7 @@ fun MatchDetailScreen(
                     when (uiState.selectedTab) {
                         0 -> OverviewTab(
                             match = uiState.match!!,
+                            h2h = uiState.headToHead,
                             onAiClick = { viewModel.generateAiAnalysis(fromAuto = false) }
                         )
                         1 -> EventsTab(uiState.extra)
@@ -157,7 +158,11 @@ fun MatchDetailScreen(
 }
 
 @Composable
-private fun OverviewTab(match: Match, onAiClick: () -> Unit) {
+private fun OverviewTab(
+    match: Match,
+    h2h: com.footballai.analyzer.domain.model.HeadToHeadData = com.footballai.analyzer.domain.model.HeadToHeadData(),
+    onAiClick: () -> Unit
+) {
     val c = LocalAppColors.current
     Column(
         Modifier
@@ -242,7 +247,35 @@ private fun OverviewTab(match: Match, onAiClick: () -> Unit) {
 
         Spacer(Modifier.height(24.dp))
 
-        Button(
+        
+        if (h2h.formHome.isNotEmpty() || h2h.formAway.isNotEmpty() || h2h.h2h.isNotEmpty()) {
+            Spacer(Modifier.height(20.dp))
+            Text("Forma & H2H", color = c.green, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+            Spacer(Modifier.height(8.dp))
+            if (h2h.formHome.isNotEmpty()) {
+                Text(match.homeTeamName + " – utolsó 5", color = c.textSecondary, fontSize = 12.sp)
+                h2h.formHome.take(5).forEach { fm ->
+                    Text(fm.homeName + " " + fm.score + " " + fm.awayName, color = c.textPrimary, fontSize = 12.sp)
+                }
+                Spacer(Modifier.height(8.dp))
+            }
+            if (h2h.formAway.isNotEmpty()) {
+                Text(match.awayTeamName + " – utolsó 5", color = c.textSecondary, fontSize = 12.sp)
+                h2h.formAway.take(5).forEach { fm ->
+                    Text(fm.homeName + " " + fm.score + " " + fm.awayName, color = c.textPrimary, fontSize = 12.sp)
+                }
+                Spacer(Modifier.height(8.dp))
+            }
+            if (h2h.h2h.isNotEmpty()) {
+                Text("Egymás ellen", color = c.textSecondary, fontSize = 12.sp)
+                h2h.h2h.take(5).forEach { fm ->
+                    Text(fm.homeName + " " + fm.score + " " + fm.awayName, color = c.textPrimary, fontSize = 12.sp)
+                }
+            }
+            Spacer(Modifier.height(16.dp))
+        }
+
+Button(
             onClick = onAiClick,
             modifier = Modifier.fillMaxWidth().height(52.dp),
             shape = RoundedCornerShape(14.dp),

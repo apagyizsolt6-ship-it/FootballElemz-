@@ -28,6 +28,7 @@ data class MatchDetailUiState(
     val aiError: String? = null,
     /** true = top 5 vagy kedvenc liga → auto AI */
     val autoAiEligible: Boolean = false,
+    val headToHead: com.footballai.analyzer.domain.model.HeadToHeadData = com.footballai.analyzer.domain.model.HeadToHeadData(),
     val error: String? = null
 )
 
@@ -73,6 +74,7 @@ class MatchDetailViewModel @Inject constructor(
                 forceRefresh = false,
                 isLiveHint = matchForHint?.isLive == true
             )
+            val h2h = repository.getHeadToHeadData(match.homeTeamId, match.awayTeamId)
 
             val header = LeagueTranslator.formatHeader(match.countryName, match.leagueName)
             val pinned = userPreferences.pinnedLeagues.first()
@@ -87,6 +89,7 @@ class MatchDetailViewModel @Inject constructor(
                 isLoading = false,
                 match = match,
                 extra = extra,
+                headToHead = h2h,
                 autoAiEligible = autoEligible,
                 aiAnalysis = cached
             )
