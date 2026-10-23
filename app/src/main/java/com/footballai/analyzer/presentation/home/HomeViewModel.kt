@@ -7,10 +7,13 @@ import com.footballai.analyzer.data.repository.MatchRepository
 import com.footballai.analyzer.domain.model.Match
 import com.footballai.analyzer.util.LeagueTranslator
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import javax.inject.Inject
@@ -29,7 +32,10 @@ data class HomeUiState(
     val selectedDate: LocalDate = LocalDate.now(),
     val filter: MatchFilter = MatchFilter.ALL,
     val onlyTopLeagues: Boolean = false,
+    val onlyFavorites: Boolean = false,
+    val searchQuery: String = "",
     val pinnedLeagues: Set<String> = emptySet(),
+    val favoriteTeams: Set<String> = emptySet(),
     val leagueGroups: List<LeagueGroup> = emptyList(),
     val totalMatchCount: Int = 0,
     val filteredMatchCount: Int = 0,
@@ -46,11 +52,18 @@ class HomeViewModel @Inject constructor(
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 
     private var allMatches: List<Match> = emptyList()
+    private var livePollJob: Job? = null
 
     init {
         viewModelScope.launch {
             userPreferences.pinnedLeagues.collect { pinned ->
                 _uiState.update { it.copy(pinnedLeagues = pinned) }
+                applyFilterAndGroup()
+            }
+        }
+        viewModelScope.launch {
+            userPreferences.favoriteTeams.collect { favs ->
+                _uiState.update { it.copy(favoriteTeams = favs) }
                 applyFilterAndGroup()
             }
         }
@@ -73,10 +86,22 @@ class HomeViewModel @Inject constructor(
         applyFilterAndGroup()
     }
 
+    fun toggleFavoritesFilter() {
+        _uiState.update { it.copy(onlyFavorites = !it.onlyFavorites) }
+        applyFilterAndGroup()
+    }
+
+    fun setSearchQuery(query: String) {
+        _uiState.update { it.copy(searchQuery = query) }
+        applyFilterAndGroup()
+    }
+
     fun togglePin(leagueHeader: String) {
-        viewModelScope.launch {
-            userPreferences.togglePinned(leagueHeader)
-        }
+        viewModelScope.launch { userPreferences.togglePinned(leagueHeader) }
+    }
+
+    fun toggleFavoriteTeam(teamName: String) {
+        viewModelScope.launch { userPreferences.toggleFavoriteTeam(teamName) }
     }
 
     fun loadMatches(isRefresh: Boolean = false) {
@@ -88,7 +113,10 @@ class HomeViewModel @Inject constructor(
                     error = null
                 )
             }
-            val result = repository.getMatchesForDate(_uiState.value.selectedDate, forceRefresh = isRefresh)
+            val result = repository.getMatchesForDate(
+                _uiState.value.selectedDate,
+                forceRefresh = isRefresh
+            )
             if (result.isSuccess) {
                 allMatches = result.getOrDefault(emptyList())
                 applyFilterAndGroup()
@@ -99,13 +127,12 @@ class HomeViewModel @Inject constructor(
                         totalMatchCount = allMatches.size
                     )
                 }
+                restartLivePolling()
             } else {
                 _uiState.update {
                     it.copy(
                         isLoading = false,
                         isRefreshing = false,
-                        totalMatchCount = 0,
-                        filteredMatchCount = 0,
                         error = result.exceptionOrNull()?.message ?: "Hiba a betöltéskor"
                     )
                 }
@@ -113,57 +140,100 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    private fun applyFilterAndGroup() {
-        val filtered = when (_uiState.value.filter) {
-            MatchFilter.ALL -> allMatches
-            MatchFilter.LIVE -> allMatches.filter { it.isLive }
-            MatchFilter.FINISHED -> allMatches.filter {
-                it.status.contains("Finished", ignoreCase = true) ||
-                    it.status.contains("Vége", ignoreCase = true) ||
-                    it.status == "Finished after penalties" ||
-                    it.status == "Finished after extra time"
+    private fun restartLivePolling() {
+        livePollJob?.cancel()
+        val hasLive = allMatches.any { it.isLive }
+        if (!hasLive) return
+        livePollJob = viewModelScope.launch {
+            while (isActive) {
+                delay(50_000L) // ~50 mp
+                if (!allMatches.any { it.isLive }) break
+                val result = repository.getMatchesForDate(
+                    _uiState.value.selectedDate,
+                    forceRefresh = true
+                )
+                if (result.isSuccess) {
+                    allMatches = result.getOrDefault(emptyList())
+                    applyFilterAndGroup()
+                    _uiState.update { it.copy(totalMatchCount = allMatches.size) }
+                    if (allMatches.none { it.isLive }) break
+                }
             }
-            MatchFilter.UPCOMING -> allMatches.filter {
-                it.status == "Not started" || it.status == "To be announced"
+        }
+    }
+
+    private fun applyFilterAndGroup() {
+        val state = _uiState.value
+        var list = allMatches
+
+        when (state.filter) {
+            MatchFilter.ALL -> {}
+            MatchFilter.LIVE -> list = list.filter { it.isLive }
+            MatchFilter.FINISHED -> list = list.filter {
+                val s = it.status.lowercase()
+                s.contains("finished") || s == "ft"
+            }
+            MatchFilter.UPCOMING -> list = list.filter {
+                !it.isLive && !it.status.lowercase().contains("finished") && it.status.lowercase() != "ft"
             }
         }
 
-        val pinned = _uiState.value.pinnedLeagues
+        val q = state.searchQuery.trim().lowercase()
+        if (q.isNotEmpty()) {
+            list = list.filter {
+                it.homeTeamName.lowercase().contains(q) ||
+                    it.awayTeamName.lowercase().contains(q) ||
+                    it.leagueName.lowercase().contains(q) ||
+                    (it.countryName?.lowercase()?.contains(q) == true)
+            }
+        }
 
-        val groups = filtered
-            .groupBy { match ->
-                LeagueTranslator.formatHeader(match.countryName, match.leagueName)
+        if (state.onlyFavorites && state.favoriteTeams.isNotEmpty()) {
+            list = list.filter {
+                it.homeTeamName in state.favoriteTeams || it.awayTeamName in state.favoriteTeams
             }
-            .map { (header, matches) ->
-                LeagueGroup(
-                    leagueName = header,
-                    matches = matches.sortedBy { it.date },
-                    isPinned = pinned.contains(header)
-                )
-            }
-            .let { list ->
-                if (_uiState.value.onlyTopLeagues) {
-                    list.filter {
-                        it.isPinned || LeagueTranslator.isTopLeague(it.leagueName)
-                    }
-                } else {
-                    list
-                }
-            }
-            .sortedWith(
-                compareByDescending<LeagueGroup> { it.isPinned }
-                    .thenBy { LeagueTranslator.topLeaguePriority(it.leagueName) }
-                    .thenComparator { a, b ->
-                        LeagueTranslator.compareHeaders(a.leagueName, b.leagueName)
-                    }
+        }
+
+        // header per match
+        data class Key(val header: String, val match: Match)
+        val keyed = list.map { m ->
+            val header = LeagueTranslator.formatHeader(m.countryName, m.leagueName)
+            Key(header, m)
+        }
+
+        var groups = keyed.groupBy { it.header }.map { (header, items) ->
+            LeagueGroup(
+                leagueName = header,
+                matches = items.map { it.match },
+                isPinned = header in state.pinnedLeagues
             )
+        }
 
+        if (state.onlyTopLeagues) {
+            groups = groups.filter {
+                LeagueTranslator.isTopLeague(it.leagueName) || it.isPinned
+            }
+        }
+
+        groups = groups.sortedWith(
+            compareBy<LeagueGroup> { if (it.isPinned) 0 else 1 }
+                .thenBy { LeagueTranslator.topLeaguePriority(it.leagueName) }
+                .thenBy { LeagueTranslator.compareHeaders(it.leagueName, it.leagueName) }
+        )
+        // proper ABC for non-top
+        groups = groups.sortedWith { a, b ->
+            val ap = if (a.isPinned) 0 else 1
+            val bp = if (b.isPinned) 0 else 1
+            if (ap != bp) return@sortedWith ap - bp
+            val at = LeagueTranslator.topLeaguePriority(a.leagueName)
+            val bt = LeagueTranslator.topLeaguePriority(b.leagueName)
+            if (at != bt) return@sortedWith at - bt
+            LeagueTranslator.compareHeaders(a.leagueName, b.leagueName)
+        }
+
+        val count = groups.sumOf { it.matches.size }
         _uiState.update {
-            it.copy(
-                leagueGroups = groups,
-                filteredMatchCount = groups.sumOf { g -> g.matches.size },
-                totalMatchCount = allMatches.size
-            )
+            it.copy(leagueGroups = groups, filteredMatchCount = count)
         }
     }
 }

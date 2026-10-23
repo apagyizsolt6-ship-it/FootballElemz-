@@ -8,7 +8,29 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.
+            // Kereső
+            OutlinedTextField(
+                value = uiState.searchQuery,
+                onValueChange = { viewModel.setSearchQuery(it) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                placeholder = { Text("Csapat vagy liga keresése…", color = c.textSecondary, fontSize = 14.sp) },
+                singleLine = true,
+                shape = RoundedCornerShape(12.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = c.green,
+                    unfocusedBorderColor = c.card,
+                    focusedTextColor = c.textPrimary,
+                    unfocusedTextColor = c.textPrimary,
+                    cursorColor = c.green,
+                    focusedContainerColor = c.card,
+                    unfocusedContainerColor = c.card
+                )
+            )
+
+            Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -29,6 +51,8 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -57,6 +81,7 @@ import java.util.Locale
 fun HomeScreen(
     onMatchClick: (Long) -> Unit,
     onSettingsClick: () -> Unit,
+    onStandingsClick: (leagueId: Long, season: Int, title: String) -> Unit = { _, _, _ -> },
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -156,6 +181,9 @@ fun HomeScreen(
                 FilterChip("Top ligák", uiState.onlyTopLeagues) {
                     viewModel.toggleTopLeagues()
                 }
+                FilterChip("Kedvencek", uiState.onlyFavorites) {
+                    viewModel.toggleFavoritesFilter()
+                }
             }
 
             Row(
@@ -210,7 +238,13 @@ fun HomeScreen(
                                         title = group.leagueName,
                                         isPinned = group.isPinned,
                                         isTop = LeagueTranslator.isTopLeague(group.leagueName),
-                                        onTogglePin = { viewModel.togglePin(group.leagueName) }
+                                        onTogglePin = { viewModel.togglePin(group.leagueName) },
+                                        onOpenStandings = {
+                                            val m = group.matches.firstOrNull()
+                                            val lid = m?.leagueId ?: 0L
+                                            val season = m?.season ?: 0
+                                            onStandingsClick(lid, season, group.leagueName)
+                                        }
                                     )
                                 }
                                 items(group.matches, key = { it.id }) { match ->
@@ -233,7 +267,8 @@ private fun LeagueHeader(
     title: String,
     isPinned: Boolean,
     isTop: Boolean,
-    onTogglePin: () -> Unit
+    onTogglePin: () -> Unit,
+    onOpenStandings: () -> Unit = {}
 ) {
     val c = LocalAppColors.current
     val accent = when {
@@ -273,7 +308,10 @@ private fun LeagueHeader(
             },
             fontSize = 13.sp,
             fontWeight = FontWeight.Bold,
-            modifier = Modifier.weight(1f).padding(end = 12.dp)
+            modifier = Modifier
+                .weight(1f)
+                .padding(end = 12.dp)
+                .clickable { onOpenStandings() }
         )
     }
 }
