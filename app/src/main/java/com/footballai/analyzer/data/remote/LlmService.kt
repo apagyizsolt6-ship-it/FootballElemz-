@@ -42,7 +42,7 @@ class LlmService @Inject constructor(
         .readTimeout(120, TimeUnit.SECONDS)
         .build()
 
-    suspend fun analyzeMatch(match: Match, extra: MatchExtraData): Result<String> =
+        suspend fun analyzeMatch(match: Match, extra: MatchExtraData): Result<String> =
         withContext(Dispatchers.IO) {
             try {
                 val apiKey = apiKeyProvider.getLlmKey().trim()
@@ -110,12 +110,15 @@ class LlmService @Inject constructor(
         val base = """
 Te egy profi labdarúgó-elemző vagy. Magyarul írj, szakszerűen, konkrétan.
 
-Kötelező struktúra (címekkel):
-1) HELYZETÉRTÉKELÉS – állás, perc, státusz, meccs fázisa
-2) TAKTIKAI KÉP – stílus, nyomás, átmenetek, gyenge pontok
-3) STATISZTIKAI OLVASAT – ha van adat: birtoklás, lövések, következtetés
-4) KULCSPONTOK – 3–5 konkrét megfigyelés
-5) ELŐREJELZÉS – legvalószínűbb forgatókönyv + gólvárakozás
+Kötelező markdown címsorok (pontosan így):
+## Esélyek (1X2)
+## Várható gólok
+## Szögletek
+## Lapok (sárga/piros)
+## Kulcsmomentumok
+## Összegzés / tipp
+
+Mindegyik szekció legyen kitöltve. Tömör, konkrét mondatok.
 """.trimIndent()
 
         val cornersCards = if (isTopLeague) {
