@@ -253,14 +253,20 @@ private fun OverviewTab(
             Text("Forma & H2H", color = c.green, fontWeight = FontWeight.Bold, fontSize = 15.sp)
             Spacer(Modifier.height(8.dp))
             if (h2h.formHome.isNotEmpty()) {
-                Text(match.homeTeamName + " – utolsó 5", color = c.textSecondary, fontSize = 12.sp)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(match.homeTeamName + " – forma  ", color = c.textSecondary, fontSize = 12.sp)
+                    com.footballai.analyzer.presentation.components.FormDots(match.homeTeamName, h2h.formHome)
+                }
                 h2h.formHome.take(5).forEach { fm ->
                     Text(fm.homeName + " " + fm.score + " " + fm.awayName, color = c.textPrimary, fontSize = 12.sp)
                 }
                 Spacer(Modifier.height(8.dp))
             }
             if (h2h.formAway.isNotEmpty()) {
-                Text(match.awayTeamName + " – utolsó 5", color = c.textSecondary, fontSize = 12.sp)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(match.awayTeamName + " – forma  ", color = c.textSecondary, fontSize = 12.sp)
+                    com.footballai.analyzer.presentation.components.FormDots(match.awayTeamName, h2h.formAway)
+                }
                 h2h.formAway.take(5).forEach { fm ->
                     Text(fm.homeName + " " + fm.score + " " + fm.awayName, color = c.textPrimary, fontSize = 12.sp)
                 }
