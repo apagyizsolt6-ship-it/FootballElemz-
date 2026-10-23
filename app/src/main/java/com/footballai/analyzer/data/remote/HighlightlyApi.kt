@@ -1,10 +1,12 @@
 package com.footballai.analyzer.data.remote
 
+import com.footballai.analyzer.data.remote.dto.FormMatchDto
 import com.footballai.analyzer.data.remote.dto.HighlightsResponse
 import com.footballai.analyzer.data.remote.dto.LineupsResponse
 import com.footballai.analyzer.data.remote.dto.LiveEventDto
 import com.footballai.analyzer.data.remote.dto.MatchDetailResponse
 import com.footballai.analyzer.data.remote.dto.MatchesResponse
+import com.footballai.analyzer.data.remote.dto.StandingsResponse
 import com.footballai.analyzer.data.remote.dto.TeamStatisticsDto
 import retrofit2.http.GET
 import retrofit2.http.Path
@@ -21,19 +23,13 @@ interface HighlightlyApi {
     ): MatchesResponse
 
     @GET("matches/{id}")
-    suspend fun getMatchById(
-        @Path("id") id: Long
-    ): List<MatchDetailResponse>
+    suspend fun getMatchById(@Path("id") id: Long): List<MatchDetailResponse>
 
     @GET("statistics/{matchId}")
-    suspend fun getStatistics(
-        @Path("matchId") matchId: Long
-    ): List<TeamStatisticsDto>
+    suspend fun getStatistics(@Path("matchId") matchId: Long): List<TeamStatisticsDto>
 
     @GET("lineups/{matchId}")
-    suspend fun getLineups(
-        @Path("matchId") matchId: Long
-    ): LineupsResponse
+    suspend fun getLineups(@Path("matchId") matchId: Long): LineupsResponse
 
     @GET("highlights")
     suspend fun getHighlights(
@@ -41,9 +37,21 @@ interface HighlightlyApi {
         @Query("limit") limit: Int = 20
     ): HighlightsResponse
 
-    /** Highlightly: GET /events/{id} — lista */
     @GET("events/{id}")
-    suspend fun getEvents(
-        @Path("id") matchId: Long
-    ): List<LiveEventDto>
+    suspend fun getEvents(@Path("id") matchId: Long): List<LiveEventDto>
+
+    @GET("standings")
+    suspend fun getStandings(
+        @Query("leagueId") leagueId: Long,
+        @Query("season") season: Int
+    ): StandingsResponse
+
+    @GET("last-five-games")
+    suspend fun getLastFiveGames(@Query("teamId") teamId: Long): List<FormMatchDto>
+
+    @GET("head-2-head")
+    suspend fun getHeadToHead(
+        @Query("teamIdOne") teamIdOne: Long,
+        @Query("teamIdTwo") teamIdTwo: Long
+    ): List<FormMatchDto>
 }
