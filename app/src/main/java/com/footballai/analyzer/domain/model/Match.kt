@@ -1,5 +1,8 @@
 package com.footballai.analyzer.domain.model
 
+import kotlinx.serialization.Serializable
+
+@Serializable
 data class Match(
     val id: Long,
     val homeTeamName: String,
