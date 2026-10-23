@@ -88,7 +88,7 @@ class HomeViewModel @Inject constructor(
                     error = null
                 )
             }
-            val result = repository.getMatchesForDate(_uiState.value.selectedDate)
+            val result = repository.getMatchesForDate(_uiState.value.selectedDate, forceRefresh = isRefresh)
             if (result.isSuccess) {
                 allMatches = result.getOrDefault(emptyList())
                 applyFilterAndGroup()
