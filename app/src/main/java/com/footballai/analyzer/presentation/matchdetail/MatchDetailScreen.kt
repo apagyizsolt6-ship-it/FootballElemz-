@@ -1,5 +1,7 @@
 package com.footballai.analyzer.presentation.matchdetail
 
+import android.content.Intent
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -32,6 +34,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -893,15 +896,40 @@ private fun AiTab(
                     }
                 }
                 Spacer(Modifier.height(16.dp))
-                Button(
-                    onClick = onRegenerate,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = c.card,
-                        contentColor = c.textPrimary
-                    ),
-                    shape = RoundedCornerShape(12.dp)
+                val context = LocalContext.current
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text("Újragenerálás")
+                    Button(
+                        onClick = onRegenerate,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = c.card,
+                            contentColor = c.textPrimary
+                        ),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Újragenerálás")
+                    }
+                    Button(
+                        onClick = {
+                            val send = Intent(Intent.ACTION_SEND).apply {
+                                type = "text/plain"
+                                putExtra(Intent.EXTRA_SUBJECT, "FociElemző AI elemzés")
+                                putExtra(Intent.EXTRA_TEXT, uiState.aiAnalysis ?: "")
+                            }
+                            context.startActivity(Intent.createChooser(send, "AI elemzés megosztása"))
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = c.green,
+                            contentColor = if (c.isDark) c.background else androidx.compose.ui.graphics.Color.White
+                        ),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Megosztás", fontWeight = FontWeight.Bold)
+                    }
                 }
             }
             else -> {
