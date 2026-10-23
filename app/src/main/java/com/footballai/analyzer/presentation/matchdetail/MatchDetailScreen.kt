@@ -58,6 +58,7 @@ import java.time.format.DateTimeFormatter
 fun MatchDetailScreen(
     matchId: Long,
     onBack: () -> Unit,
+    onStandingsClick: (leagueId: Long, season: Int, title: String, homeId: Long, awayId: Long) -> Unit = { _, _, _, _, _ -> },
     viewModel: MatchDetailViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -139,6 +140,18 @@ fun MatchDetailScreen(
                         0 -> OverviewTab(
                             match = uiState.match!!,
                             h2h = uiState.headToHead,
+                            favoriteTeams = uiState.favoriteTeams,
+                            onToggleFavorite = { viewModel.toggleFavoriteTeam(it) },
+                            onStandingsClick = {
+                                val m = uiState.match!!
+                                onStandingsClick(
+                                    m.leagueId ?: 0L,
+                                    m.season ?: 0,
+                                    m.leagueName,
+                                    m.homeTeamId ?: 0L,
+                                    m.awayTeamId ?: 0L
+                                )
+                            },
                             onAiClick = { viewModel.generateAiAnalysis(fromAuto = false) }
                         )
                         1 -> EventsTab(uiState.extra)
@@ -161,6 +174,9 @@ fun MatchDetailScreen(
 private fun OverviewTab(
     match: Match,
     h2h: com.footballai.analyzer.domain.model.HeadToHeadData = com.footballai.analyzer.domain.model.HeadToHeadData(),
+    favoriteTeams: Set<String> = emptySet(),
+    onToggleFavorite: (String) -> Unit = {},
+    onStandingsClick: () -> Unit = {},
     onAiClick: () -> Unit
 ) {
     val c = LocalAppColors.current
@@ -281,6 +297,45 @@ private fun OverviewTab(
             Spacer(Modifier.height(16.dp))
         }
 
+
+        // Tabella + kedvencek
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            if ((match.leagueId ?: 0) > 0 && (match.season ?: 0) > 0) {
+                Button(
+                    onClick = onStandingsClick,
+                    colors = ButtonDefaults.buttonColors(containerColor = c.surface),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("Tabella", color = c.green, fontWeight = FontWeight.Bold)
+                }
+            }
+            Button(
+                onClick = { onToggleFavorite(match.homeTeamName) },
+                colors = ButtonDefaults.buttonColors(containerColor = c.surface),
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
+                    if (match.homeTeamName in favoriteTeams) "★ Hazai" else "☆ Hazai",
+                    color = if (match.homeTeamName in favoriteTeams) c.pinGold else c.textPrimary,
+                    fontSize = 12.sp
+                )
+            }
+            Button(
+                onClick = { onToggleFavorite(match.awayTeamName) },
+                colors = ButtonDefaults.buttonColors(containerColor = c.surface),
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
+                    if (match.awayTeamName in favoriteTeams) "★ Vendég" else "☆ Vendég",
+                    color = if (match.awayTeamName in favoriteTeams) c.pinGold else c.textPrimary,
+                    fontSize = 12.sp
+                )
+            }
+        }
+        Spacer(Modifier.height(12.dp))
 Button(
             onClick = onAiClick,
             modifier = Modifier.fillMaxWidth().height(52.dp),
@@ -802,21 +857,33 @@ private fun AiTab(
             }
             uiState.aiAnalysis != null -> {
                 if (uiState.autoAiEligible) {
-                    Text(
-                        "Top liga / kedvenc – automatikus elemzés",
-                        color = c.textSecondary,
-                        fontSize = 12.sp
-                    )
-                    Spacer(Modifier.height(8.dp))
-                }
-                Text(
-                    uiState.aiAnalysis ?: "",
-                    color = c.textPrimary,
-                    fontSize = 14.sp,
-                    lineHeight = 22.sp
-                )
-                Spacer(Modifier.height(16.dp))
-                Button(
+                    
+                    val sections = com.footballai.analyzer.util.AiSectionParser.parse(uiState.aiAnalysis ?: "")
+                    if (sections.size <= 1) {
+                        Text(
+                            uiState.aiAnalysis ?: "",
+                            color = c.textPrimary,
+                            fontSize = 14.sp,
+                            lineHeight = 20.sp
+                        )
+                    } else {
+                        sections.forEach { sec ->
+                            Column(
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(bottom = 10.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(c.card)
+                                    .padding(12.dp)
+                            ) {
+                                Text(sec.title, color = c.green, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                Spacer(Modifier.height(6.dp))
+                                Text(sec.body, color = c.textPrimary, fontSize = 13.sp, lineHeight = 19.sp)
+                            }
+                        }
+                    }
+
+                    Button(
                     onClick = onRegenerate,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = c.card,

@@ -29,6 +29,7 @@ data class MatchDetailUiState(
     /** true = top 5 vagy kedvenc liga → auto AI */
     val autoAiEligible: Boolean = false,
     val headToHead: com.footballai.analyzer.domain.model.HeadToHeadData = com.footballai.analyzer.domain.model.HeadToHeadData(),
+    val favoriteTeams: Set<String> = emptySet(),
     val error: String? = null
 )
 
@@ -47,6 +48,12 @@ class MatchDetailViewModel @Inject constructor(
     val uiState: StateFlow<MatchDetailUiState> = _uiState.asStateFlow()
 
     init {
+        viewModelScope.launch {
+            userPreferences.favoriteTeams.collect { favs ->
+                _uiState.value = _uiState.value.copy(favoriteTeams = favs)
+            }
+        }
+
         loadAll()
     }
 
@@ -148,5 +155,11 @@ class MatchDetailViewModel @Inject constructor(
 
     fun regenerateAi() {
         generateAiAnalysis(fromAuto = false, force = true)
+    }
+
+    fun toggleFavoriteTeam(teamName: String) {
+        viewModelScope.launch {
+            userPreferences.toggleFavoriteTeam(teamName)
+        }
     }
 }
