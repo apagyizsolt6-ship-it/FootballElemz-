@@ -19,10 +19,16 @@ sealed class Screen(val route: String) {
     data object MatchDetail : Screen("match/{matchId}") {
         fun createRoute(matchId: Long) = "match/$matchId"
     }
-    data object Standings : Screen("standings/{leagueId}/{season}/{title}") {
-        fun createRoute(leagueId: Long, season: Int, title: String): String {
+    data object Standings : Screen("standings/{leagueId}/{season}/{title}/{homeId}/{awayId}") {
+        fun createRoute(
+            leagueId: Long,
+            season: Int,
+            title: String,
+            homeId: Long = 0L,
+            awayId: Long = 0L
+        ): String {
             val enc = URLEncoder.encode(title, StandardCharsets.UTF_8.toString())
-            return "standings/$leagueId/$season/$enc"
+            return "standings/$leagueId/$season/$enc/$homeId/$awayId"
         }
     }
 }
@@ -45,7 +51,9 @@ fun NavGraph() {
                 },
                 onStandingsClick = { leagueId, season, title ->
                     if (leagueId > 0 && season > 0) {
-                        navController.navigate(Screen.Standings.createRoute(leagueId, season, title))
+                        navController.navigate(
+                            Screen.Standings.createRoute(leagueId, season, title)
+                        )
                     }
                 }
             )
@@ -58,7 +66,16 @@ fun NavGraph() {
             val matchId = backStackEntry.arguments?.getLong("matchId") ?: return@composable
             MatchDetailScreen(
                 matchId = matchId,
-                onBack = { navController.popBackStack() }
+                onBack = { navController.popBackStack() },
+                onStandingsClick = { leagueId, season, title, homeId, awayId ->
+                    if (leagueId > 0 && season > 0) {
+                        navController.navigate(
+                            Screen.Standings.createRoute(
+                                leagueId, season, title, homeId, awayId
+                            )
+                        )
+                    }
+                }
             )
         }
 
@@ -71,7 +88,9 @@ fun NavGraph() {
             arguments = listOf(
                 navArgument("leagueId") { type = NavType.LongType },
                 navArgument("season") { type = NavType.IntType },
-                navArgument("title") { type = NavType.StringType }
+                navArgument("title") { type = NavType.StringType },
+                navArgument("homeId") { type = NavType.LongType },
+                navArgument("awayId") { type = NavType.LongType }
             )
         ) {
             StandingsScreen(onBack = { navController.popBackStack() })
