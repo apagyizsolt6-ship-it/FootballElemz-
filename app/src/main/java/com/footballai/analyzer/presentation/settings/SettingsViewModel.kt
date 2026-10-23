@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.footballai.analyzer.data.local.AiAnalysisCache
 import com.footballai.analyzer.data.local.ApiKeyProvider
 import com.footballai.analyzer.data.local.MatchLocalCache
+import com.footballai.analyzer.data.local.UserPreferences
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -17,6 +18,7 @@ data class SettingsUiState(
     val llmKey: String = "",
     val llmBaseUrl: String = "https://api.x.ai/v1/",
     val llmModel: String = "grok-4.7",
+    val favoriteTeams: List<String> = emptyList(),
     val message: String? = null
 )
 
@@ -24,7 +26,8 @@ data class SettingsUiState(
 class SettingsViewModel @Inject constructor(
     private val apiKeyProvider: ApiKeyProvider,
     private val matchCache: MatchLocalCache,
-    private val aiCache: AiAnalysisCache
+    private val aiCache: AiAnalysisCache,
+    private val userPreferences: UserPreferences
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SettingsUiState())
@@ -38,6 +41,13 @@ class SettingsViewModel @Inject constructor(
                 llmBaseUrl = apiKeyProvider.getLlmBaseUrl(),
                 llmModel = apiKeyProvider.getLlmModel()
             )
+        }
+        viewModelScope.launch {
+            userPreferences.favoriteTeams.collect { favs ->
+                _uiState.value = _uiState.value.copy(
+                    favoriteTeams = favs.sorted()
+                )
+            }
         }
     }
 
@@ -72,6 +82,13 @@ class SettingsViewModel @Inject constructor(
             matchCache.clearAll()
             aiCache.clear()
             _uiState.value = _uiState.value.copy(message = "Cache törölve (meccsek + AI)")
+        }
+    }
+
+    fun removeFavorite(teamName: String) {
+        viewModelScope.launch {
+            userPreferences.toggleFavoriteTeam(teamName)
+            _uiState.value = _uiState.value.copy(message = "Eltávolítva: $teamName")
         }
     }
 }

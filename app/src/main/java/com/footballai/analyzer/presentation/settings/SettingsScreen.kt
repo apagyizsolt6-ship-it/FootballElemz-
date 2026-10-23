@@ -223,6 +223,43 @@ fun SettingsScreen(
             )
 
 
+            
+            Spacer(modifier = Modifier.height(24.dp))
+            Text(
+                text = "Kedvenc csapatok",
+                color = c.textPrimary,
+                fontWeight = FontWeight.SemiBold
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "A listában csillaggal jelölt csapatok. A „Kedvencek” szűrő ezeket mutatja.",
+                color = c.textSecondary,
+                fontSize = 12.sp
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            if (uiState.favoriteTeams.isEmpty()) {
+                Text("Még nincs kedvenc csapat.", color = c.textSecondary, fontSize = 13.sp)
+            } else {
+                uiState.favoriteTeams.forEach { team ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 6.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(team, color = c.textPrimary, fontSize = 14.sp, modifier = Modifier.weight(1f))
+                        Text(
+                            "Eltávolít",
+                            color = c.redLive,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium,
+                            modifier = Modifier.clickable { viewModel.removeFavorite(team) }
+                        )
+                    }
+                }
+            }
+
             if (uiState.message != null) {
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
