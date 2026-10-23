@@ -66,26 +66,37 @@ object LeagueTranslator {
     )
 
     /**
-     * Top prioritás sorrend:
+     * Top prioritás:
      * 0 BL, 1 EL, 2 Konferencia, 3 PL, 4 La Liga, 5 Bundesliga, 6 Serie A, 7 Ligue 1
-     * Európai kupáknál ország nem kötelező (World / Europe / több ország).
+     * CAF / PL2 / U21 kizárva.
      */
     private data class TopLeagueRule(
         val priority: Int,
-        val countries: Set<String>?, // null = bármely ország (UEFA kupa)
+        val countries: Set<String>?,
         val leagueMustContain: List<String>,
         val leagueMustNotContain: List<String> = emptyList()
     )
 
     private val topRules = listOf(
-        // UEFA kupák – ország független
         TopLeagueRule(
             priority = 0,
             countries = null,
             leagueMustContain = listOf(
-                "champions league", "bajnokok ligaja", "uefa champions"
+                "uefa champions", "bajnokok ligaja"
             ),
-            leagueMustNotContain = listOf("youth", "u19", "u21", "women", "noi")
+            leagueMustNotContain = listOf(
+                "youth", "u19", "u21", "women", "noi",
+                "caf", "afc", "ofc", "concacaf", "conmebol",
+                "african", "asian", "arab", "recopa"
+            )
+        ),
+        TopLeagueRule(
+            priority = 0,
+            countries = setOf("europe", "europa", "europa", "uefa"),
+            leagueMustContain = listOf("champions league", "bajnokok ligaja"),
+            leagueMustNotContain = listOf(
+                "youth", "u19", "u21", "women", "noi", "caf", "afc"
+            )
         ),
         TopLeagueRule(
             priority = 1,
@@ -93,47 +104,54 @@ object LeagueTranslator {
             leagueMustContain = listOf(
                 "europa league", "europa liga", "uefa europa league"
             ),
-            // ne egyezzen a conference-szel
-            leagueMustNotContain = listOf("conference", "konferencia", "youth", "u19", "u21")
+            leagueMustNotContain = listOf(
+                "conference", "konferencia", "youth", "u19", "u21", "caf"
+            )
         ),
         TopLeagueRule(
             priority = 2,
             countries = null,
             leagueMustContain = listOf(
-                "conference league", "konferencia liga", "europa conference"
+                "conference league", "konferencia liga", "europa conference",
+                "uefa conference"
             ),
-            leagueMustNotContain = listOf("youth", "u19", "u21")
+            leagueMustNotContain = listOf("youth", "u19", "u21", "caf")
         ),
-        // Hazai top 5 – ország + liga
         TopLeagueRule(
             priority = 3,
             countries = setOf("england", "anglia"),
             leagueMustContain = listOf("premier league"),
-            leagueMustNotContain = listOf("cup", "u21", "u23", "2.", "championship", "international")
+            leagueMustNotContain = listOf(
+                "cup", "u21", "u23", "u18", "u19",
+                "2", "division", "championship", "international",
+                "pl2", "premier league 2", "national league"
+            )
         ),
         TopLeagueRule(
             priority = 4,
             countries = setOf("spain", "spanyolorszag"),
             leagueMustContain = listOf("la liga", "laliga"),
-            leagueMustNotContain = listOf("2", "hypermotion", "primera federacion")
+            leagueMustNotContain = listOf(
+                "2", "hypermotion", "primera federacion", "u21", "u19"
+            )
         ),
         TopLeagueRule(
             priority = 5,
             countries = setOf("germany", "nemetorszag"),
             leagueMustContain = listOf("bundesliga"),
-            leagueMustNotContain = listOf("2.", "3.", "ii", "iii", "frauen")
+            leagueMustNotContain = listOf("2.", "3.", "ii", "iii", "frauen", "u21", "u19")
         ),
         TopLeagueRule(
             priority = 6,
             countries = setOf("italy", "olaszorszag"),
             leagueMustContain = listOf("serie a"),
-            leagueMustNotContain = listOf("serie b", "serie c", "women", "noi")
+            leagueMustNotContain = listOf("serie b", "serie c", "women", "noi", "u21", "u19")
         ),
         TopLeagueRule(
             priority = 7,
             countries = setOf("france", "franciaorszag"),
             leagueMustContain = listOf("ligue 1"),
-            leagueMustNotContain = listOf("ligue 2", "national")
+            leagueMustNotContain = listOf("ligue 2", "national", "u21", "u19")
         )
     )
 
