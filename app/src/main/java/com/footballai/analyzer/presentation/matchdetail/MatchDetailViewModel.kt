@@ -57,7 +57,7 @@ class MatchDetailViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
 
-            val matchResult = repository.getMatchById(matchId)
+            val matchResult = repository.getMatchById(matchId, forceRefresh = false)
             if (matchResult.isFailure) {
                 _uiState.value = MatchDetailUiState(
                     isLoading = false,
@@ -67,7 +67,12 @@ class MatchDetailViewModel @Inject constructor(
             }
 
             val match = matchResult.getOrThrow()
-            val extra = repository.getMatchExtraData(matchId)
+            val matchForHint = matchResult.getOrNull()
+            val extra = repository.getMatchExtraData(
+                matchId = matchId,
+                forceRefresh = false,
+                isLiveHint = matchForHint?.isLive == true
+            )
 
             val header = LeagueTranslator.formatHeader(match.countryName, match.leagueName)
             val pinned = userPreferences.pinnedLeagues.first()
