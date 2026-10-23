@@ -930,6 +930,24 @@ private fun AiTab(
 }
 
 
+@Composable
+private fun EmptyMessage(message: String) {
+    val c = LocalAppColors.current
+    Box(
+        Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = message,
+            color = c.textSecondary,
+            textAlign = TextAlign.Center,
+            fontSize = 14.sp,
+            lineHeight = 20.sp,
+            modifier = Modifier.padding(24.dp)
+        )
+    }
+}
+
 private fun translateStatus(status: String): String {
     val s = status.lowercase()
     return when {
