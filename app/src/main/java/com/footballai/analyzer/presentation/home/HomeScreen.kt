@@ -8,35 +8,13 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.
-            // Kereső
-            OutlinedTextField(
-                value = uiState.searchQuery,
-                onValueChange = { viewModel.setSearchQuery(it) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 6.dp),
-                placeholder = { Text("Csapat vagy liga keresése…", color = c.textSecondary, fontSize = 14.sp) },
-                singleLine = true,
-                shape = RoundedCornerShape(12.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = c.green,
-                    unfocusedBorderColor = c.card,
-                    focusedTextColor = c.textPrimary,
-                    unfocusedTextColor = c.textPrimary,
-                    cursorColor = c.green,
-                    focusedContainerColor = c.card,
-                    unfocusedContainerColor = c.card
-                )
-            )
-
-            Spacer
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -45,14 +23,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
-
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -62,8 +39,8 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -81,38 +58,28 @@ import java.util.Locale
 fun HomeScreen(
     onMatchClick: (Long) -> Unit,
     onSettingsClick: () -> Unit,
-    onStandingsClick: (leagueId: Long, season: Int, title: String) -> Unit = { _, _, _ -> },
+    onStandingsClick: (Long, Int, String) -> Unit = { _, _, _ -> },
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val c = LocalAppColors.current
-    val today = LocalDate.now()
-    val dates = (-3..7).map { today.plusDays(it.toLong()) }
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
                     Text(
-                        text = "FociElemző",
+                        "FociElemző",
                         fontWeight = FontWeight.Bold,
-                        color = c.textPrimary
+                        color = c.green
                     )
                 },
                 actions = {
                     IconButton(onClick = { viewModel.loadMatches(isRefresh = true) }) {
-                        Icon(
-                            imageVector = Icons.Default.Refresh,
-                            contentDescription = "Frissítés",
-                            tint = c.green
-                        )
+                        Icon(Icons.Filled.Refresh, contentDescription = "Frissítés", tint = c.green)
                     }
                     IconButton(onClick = onSettingsClick) {
-                        Icon(
-                            imageVector = Icons.Default.Settings,
-                            contentDescription = "Beállítások",
-                            tint = c.green
-                        )
+                        Icon(Icons.Filled.Settings, contentDescription = "Beállítások", tint = c.green)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -125,42 +92,43 @@ fun HomeScreen(
         containerColor = c.background
     ) { padding ->
         Column(
-            modifier = Modifier
+            Modifier
                 .fillMaxSize()
                 .padding(padding)
         ) {
+            // Dátum chip-ek
             Row(
-                modifier = Modifier
+                Modifier
                     .fillMaxWidth()
                     .horizontalScroll(rememberScrollState())
-                    .padding(horizontal = 8.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                dates.forEach { date ->
-                    val isSelected = date == uiState.selectedDate
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(if (isSelected) c.green else c.card)
-                            .clickable { viewModel.selectDate(date) }
-                            .padding(horizontal = 14.dp, vertical = 8.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = buildDateLabel(date, today),
-                            color = if (isSelected) {
-                                if (c.isDark) c.background else Color.White
-                            } else c.textPrimary,
-                            fontSize = 12.sp,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                            textAlign = TextAlign.Center
-                        )
+                val today = LocalDate.now()
+                (-3..3).forEach { offset ->
+                    val date = today.plusDays(offset.toLong())
+                    val label = when (offset) {
+                        -1 -> "Tegnap"
+                        0 -> "Ma"
+                        1 -> "Holnap"
+                        else -> {
+                            val day = date.dayOfMonth
+                            val mon = date.monthValue
+                            val wd = date.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale("hu", "HU"))
+                            "$day/$mon $wd"
+                        }
                     }
+                    FilterChip(
+                        text = label,
+                        selected = uiState.selectedDate == date,
+                        onClick = { viewModel.selectDate(date) }
+                    )
                 }
             }
 
+            // Szűrő chip-ek
             Row(
-                modifier = Modifier
+                Modifier
                     .fillMaxWidth()
                     .horizontalScroll(rememberScrollState())
                     .padding(horizontal = 12.dp, vertical = 4.dp),
@@ -186,54 +154,73 @@ fun HomeScreen(
                 }
             }
 
-            Row(
+            // Kereső
+            OutlinedTextField(
+                value = uiState.searchQuery,
+                onValueChange = { viewModel.setSearchQuery(it) },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 6.dp),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                val countText = when {
-                    uiState.onlyTopLeagues ->
-                        "${uiState.filteredMatchCount} meccs (Top ligák / kedvenc)"
-                    uiState.filter != MatchFilter.ALL ->
-                        "${uiState.filteredMatchCount} / ${uiState.totalMatchCount} meccs"
-                    else ->
-                        "${uiState.totalMatchCount} meccs"
-                }
-                Text(text = countText, color = c.textSecondary, fontSize = 13.sp)
-                if (uiState.isLoading || uiState.isRefreshing) {
-                    Text(text = "Betöltés...", color = c.green, fontSize = 13.sp)
-                }
-            }
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                placeholder = {
+                    Text("Csapat vagy liga keresése…", color = c.textSecondary, fontSize = 14.sp)
+                },
+                singleLine = true,
+                shape = RoundedCornerShape(12.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = c.green,
+                    unfocusedBorderColor = c.card,
+                    focusedTextColor = c.textPrimary,
+                    unfocusedTextColor = c.textPrimary,
+                    cursorColor = c.green,
+                    focusedContainerColor = c.card,
+                    unfocusedContainerColor = c.card
+                )
+            )
 
-            PullToRefreshBox(
-                isRefreshing = uiState.isRefreshing,
-                onRefresh = { viewModel.loadMatches(isRefresh = true) },
-                modifier = Modifier.fillMaxSize()
-            ) {
-                when {
-                    uiState.isLoading && uiState.leagueGroups.isEmpty() -> {
-                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator(color = c.green)
+            Text(
+                text = when {
+                    uiState.onlyTopLeagues -> "${uiState.filteredMatchCount} meccs (Top ligák)"
+                    uiState.onlyFavorites -> "${uiState.filteredMatchCount} meccs (Kedvencek)"
+                    uiState.searchQuery.isNotBlank() -> "${uiState.filteredMatchCount} találat"
+                    else -> "${uiState.filteredMatchCount} meccs"
+                },
+                color = c.textSecondary,
+                fontSize = 12.sp,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+            )
+
+            when {
+                uiState.isLoading -> {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = c.green)
+                    }
+                }
+                uiState.error != null -> {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(uiState.error ?: "", color = c.textSecondary, textAlign = TextAlign.Center)
+                            Spacer(Modifier.height(12.dp))
+                            Text(
+                                "Újrapróbálás",
+                                color = c.green,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.clickable { viewModel.loadMatches(isRefresh = true) }
+                            )
                         }
                     }
-                    uiState.error != null && uiState.leagueGroups.isEmpty() -> {
-                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Text(text = uiState.error ?: "", color = c.textSecondary)
-                        }
-                    }
-                    uiState.leagueGroups.isEmpty() -> {
-                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Text(text = "Nincs meccs ezen a napon", color = c.textSecondary)
-                        }
-                    }
-                    else -> {
+                }
+                else -> {
+                    PullToRefreshBox(
+                        isRefreshing = uiState.isRefreshing,
+                        onRefresh = { viewModel.loadMatches(isRefresh = true) },
+                        modifier = Modifier.fillMaxSize()
+                    ) {
                         LazyColumn(
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(bottom = 16.dp)
+                            contentPadding = PaddingValues(bottom = 24.dp),
+                            modifier = Modifier.fillMaxSize()
                         ) {
                             uiState.leagueGroups.forEach { group ->
-                                item {
+                                item(key = "h_${group.leagueName}") {
                                     LeagueHeader(
                                         title = group.leagueName,
                                         isPinned = group.isPinned,
@@ -288,10 +275,7 @@ private fun LeagueHeader(
                 .height(40.dp)
                 .background(accent)
         )
-        IconButton(
-            onClick = onTogglePin,
-            modifier = Modifier.size(36.dp)
-        ) {
+        IconButton(onClick = onTogglePin, modifier = Modifier.size(36.dp)) {
             Icon(
                 imageVector = Icons.Filled.Star,
                 contentDescription = if (isPinned) "Kedvenc levétel" else "Kedvenc",
@@ -334,28 +318,14 @@ private fun FilterChip(
                     else -> c.card
                 }
             )
-            .clickable { onClick() }
-            .padding(horizontal = 12.dp, vertical = 6.dp)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 8.dp)
     ) {
         Text(
             text = text,
-            color = if (selected) {
-                Color.White
-            } else if (isLive) c.redLive else c.textPrimary,
+            color = if (selected) Color.White else if (isLive) c.redLive else c.textPrimary,
             fontSize = 13.sp,
-            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
+            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
         )
-    }
-}
-
-private fun buildDateLabel(date: LocalDate, today: LocalDate): String {
-    return when (date) {
-        today.minusDays(1) -> "Tegnap"
-        today -> "Ma"
-        today.plusDays(1) -> "Holnap"
-        else -> {
-            val dayName = date.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale("hu", "HU"))
-            date.dayOfMonth.toString() + "/" + date.monthValue.toString() + " " + dayName
-        }
     }
 }
