@@ -220,11 +220,15 @@ class MatchRepository @Inject constructor(
             awayTeamName = awayTeam?.name ?: "Away",
             homeTeamLogo = homeTeam?.logo,
             awayTeamLogo = awayTeam?.logo,
+            homeTeamId = homeTeam?.id?.toLong(),
+            awayTeamId = awayTeam?.id?.toLong(),
             score = state?.score?.current ?: "- -",
             minute = state?.clock,
             status = status,
             leagueName = league?.name ?: "",
             leagueLogo = league?.logo,
+            leagueId = league?.id?.toLong(),
+            season = league?.season,
             countryName = country?.name,
             date = date,
             isLive = status in liveStatuses
@@ -243,14 +247,69 @@ class MatchRepository @Inject constructor(
             awayTeamName = awayTeam?.name ?: "Away",
             homeTeamLogo = homeTeam?.logo,
             awayTeamLogo = awayTeam?.logo,
+            homeTeamId = homeTeam?.id?.toLong(),
+            awayTeamId = awayTeam?.id?.toLong(),
             score = state?.score?.current ?: "- -",
             minute = state?.clock,
             status = status,
             leagueName = league?.name ?: "",
             leagueLogo = league?.logo,
+            leagueId = league?.id?.toLong(),
+            season = league?.season,
             countryName = country?.name,
             date = date,
             isLive = status in liveStatuses
         )
+    }
+
+
+    suspend fun getStandings(leagueId: Long, season: Int): Result<List<com.footballai.analyzer.domain.model.StandingsGroup>> {
+        return try {
+            val resp = api.getStandings(leagueId, season)
+            val groups = resp.groups.map { g ->
+                com.footballai.analyzer.domain.model.StandingsGroup(
+                    name = g.name ?: "Tabella",
+                    rows = g.standings.map { r ->
+                        val t = r.total
+                        com.footballai.analyzer.domain.model.StandingRow(
+                            position = r.position ?: 0,
+                            teamId = r.team?.id,
+                            teamName = r.team?.name ?: "?",
+                            teamLogo = r.team?.logo,
+                            played = t?.games ?: 0,
+                            wins = t?.wins ?: 0,
+                            draws = t?.draws ?: 0,
+                            losses = t?.loses ?: 0,
+                            goalsFor = t?.scoredGoals ?: 0,
+                            goalsAgainst = t?.receivedGoals ?: 0,
+                            points = r.points ?: 0
+                        )
+                    }.sortedBy { it.position }
+                )
+            }
+            Result.success(groups)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getHeadToHeadData(homeTeamId: Long?, awayTeamId: Long?): com.footballai.analyzer.domain.model.HeadToHeadData {
+        if (homeTeamId == null || awayTeamId == null) {
+            return com.footballai.analyzer.domain.model.HeadToHeadData()
+        }
+        fun mapForm(list: List<com.footballai.analyzer.data.remote.dto.FormMatchDto>) =
+            list.map {
+                com.footballai.analyzer.domain.model.FormMatch(
+                    id = it.id ?: 0L,
+                    homeName = it.homeTeam?.name ?: "?",
+                    awayName = it.awayTeam?.name ?: "?",
+                    score = it.state?.score?.current ?: "- -",
+                    date = it.date
+                )
+            }
+        val homeForm = try { mapForm(api.getLastFiveGames(homeTeamId)) } catch (_: Exception) { emptyList() }
+        val awayForm = try { mapForm(api.getLastFiveGames(awayTeamId)) } catch (_: Exception) { emptyList() }
+        val h2h = try { mapForm(api.getHeadToHead(homeTeamId, awayTeamId)) } catch (_: Exception) { emptyList() }
+        return com.footballai.analyzer.domain.model.HeadToHeadData(homeForm, awayForm, h2h)
     }
 }
