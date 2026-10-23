@@ -18,25 +18,34 @@ class UserPreferences @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
     private val pinnedKey = stringSetPreferencesKey("pinned_leagues")
+    private val favoriteTeamsKey = stringSetPreferencesKey("favorite_teams")
     private val darkThemeKey = booleanPreferencesKey("dark_theme")
 
     val pinnedLeagues: Flow<Set<String>> = context.userPrefs.data.map { prefs ->
         prefs[pinnedKey] ?: emptySet()
     }
 
+    val favoriteTeams: Flow<Set<String>> = context.userPrefs.data.map { prefs ->
+        prefs[favoriteTeamsKey] ?: emptySet()
+    }
+
     val isDarkTheme: Flow<Boolean> = context.userPrefs.data.map { prefs ->
-        prefs[darkThemeKey] ?: true // alapbol sotet
+        prefs[darkThemeKey] ?: true
     }
 
     suspend fun togglePinned(leagueHeader: String) {
         context.userPrefs.edit { prefs ->
             val current = prefs[pinnedKey]?.toMutableSet() ?: mutableSetOf()
-            if (current.contains(leagueHeader)) {
-                current.remove(leagueHeader)
-            } else {
-                current.add(leagueHeader)
-            }
+            if (!current.add(leagueHeader)) current.remove(leagueHeader)
             prefs[pinnedKey] = current
+        }
+    }
+
+    suspend fun toggleFavoriteTeam(teamName: String) {
+        context.userPrefs.edit { prefs ->
+            val current = prefs[favoriteTeamsKey]?.toMutableSet() ?: mutableSetOf()
+            if (!current.add(teamName)) current.remove(teamName)
+            prefs[favoriteTeamsKey] = current
         }
     }
 
