@@ -856,34 +856,44 @@ private fun AiTab(
                 }
             }
             uiState.aiAnalysis != null -> {
-                if (uiState.autoAiEligible) {
-                    
-                    val sections = com.footballai.analyzer.util.AiSectionParser.parse(uiState.aiAnalysis ?: "")
-                    if (sections.size <= 1) {
-                        Text(
-                            uiState.aiAnalysis ?: "",
-                            color = c.textPrimary,
-                            fontSize = 14.sp,
-                            lineHeight = 20.sp
-                        )
-                    } else {
-                        sections.forEach { sec ->
-                            Column(
-                                Modifier
-                                    .fillMaxWidth()
-                                    .padding(bottom = 10.dp)
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(c.card)
-                                    .padding(12.dp)
-                            ) {
-                                Text(sec.title, color = c.green, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                                Spacer(Modifier.height(6.dp))
-                                Text(sec.body, color = c.textPrimary, fontSize = 13.sp, lineHeight = 19.sp)
-                            }
+                val sections = com.footballai.analyzer.util.AiSectionParser.parse(
+                    uiState.aiAnalysis ?: ""
+                )
+                if (sections.size <= 1) {
+                    Text(
+                        uiState.aiAnalysis ?: "",
+                        color = c.textPrimary,
+                        fontSize = 14.sp,
+                        lineHeight = 20.sp
+                    )
+                } else {
+                    sections.forEach { sec ->
+                        Column(
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 10.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(c.card)
+                                .padding(12.dp)
+                        ) {
+                            Text(
+                                sec.title,
+                                color = c.green,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp
+                            )
+                            Spacer(Modifier.height(6.dp))
+                            Text(
+                                sec.body,
+                                color = c.textPrimary,
+                                fontSize = 13.sp,
+                                lineHeight = 19.sp
+                            )
                         }
                     }
-
-                    Button(
+                }
+                Spacer(Modifier.height(16.dp))
+                Button(
                     onClick = onRegenerate,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = c.card,
@@ -919,20 +929,6 @@ private fun AiTab(
     }
 }
 
-@Composable
-private fun EmptyMessage(text: String) {
-    val c = LocalAppColors.current
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Text(
-            text = text,
-            color = c.textSecondary,
-            textAlign = TextAlign.Center,
-            fontSize = 14.sp,
-            lineHeight = 20.sp,
-            modifier = Modifier.padding(24.dp)
-        )
-    }
-}
 
 private fun translateStatus(status: String): String {
     val s = status.lowercase()
