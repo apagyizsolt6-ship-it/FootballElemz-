@@ -17,6 +17,8 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.time.LocalDate
+import java.time.LocalTime
+import java.time.format.DateTimeFormatter
 import javax.inject.Inject
 
 enum class MatchFilter { ALL, LIVE, FINISHED, UPCOMING }
@@ -41,7 +43,8 @@ data class HomeUiState(
     val totalMatchCount: Int = 0,
     val filteredMatchCount: Int = 0,
     val hasLiveOnSelectedDate: Boolean = false,
-    val error: String? = null
+    val error: String? = null,
+    val lastUpdatedLabel: String? = null
 )
 
 @HiltViewModel
@@ -126,6 +129,7 @@ class HomeViewModel @Inject constructor(
                         isLoading = false,
                         isRefreshing = false,
                         totalMatchCount = allMatches.size,
+                        lastUpdatedLabel = "Frissítve " + LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm")),
                         hasLiveOnSelectedDate = allMatches.any { m -> m.isLive }
                     )
                 }

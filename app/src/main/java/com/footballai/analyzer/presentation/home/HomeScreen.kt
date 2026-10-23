@@ -179,17 +179,30 @@ fun HomeScreen(
                 )
             )
 
-            Text(
-                text = when {
-                    uiState.onlyTopLeagues -> "${uiState.filteredMatchCount} meccs (Top ligák)"
-                    uiState.onlyFavorites -> "${uiState.filteredMatchCount} meccs (Kedvencek)"
-                    uiState.searchQuery.isNotBlank() -> "${uiState.filteredMatchCount} találat"
-                    else -> "${uiState.filteredMatchCount} meccs"
-                },
-                color = c.textSecondary,
-                fontSize = 12.sp,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
-            )
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = when {
+                        uiState.onlyTopLeagues -> "${uiState.filteredMatchCount} meccs (Top ligák)"
+                        uiState.onlyFavorites -> "${uiState.filteredMatchCount} meccs (Kedvencek)"
+                        uiState.searchQuery.isNotBlank() -> "${uiState.filteredMatchCount} találat"
+                        else -> "${uiState.filteredMatchCount} meccs"
+                    },
+                    color = c.textSecondary,
+                    fontSize = 12.sp
+                )
+                if (uiState.lastUpdatedLabel != null) {
+                    Text(
+                        text = uiState.lastUpdatedLabel ?: "",
+                        color = c.textSecondary,
+                        fontSize = 11.sp
+                    )
+                }
+            }
 
             when {
                 uiState.isLoading -> {
