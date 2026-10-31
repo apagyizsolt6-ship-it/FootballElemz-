@@ -1,6 +1,10 @@
 package com.footballai.analyzer.presentation.matchdetail
 
+import android.Manifest
 import android.content.Intent
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -77,6 +81,23 @@ fun MatchDetailScreen(
     val uiState by viewModel.uiState.collectAsState()
     val c = LocalAppColors.current
     val context = LocalContext.current
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        viewModel.onNotificationPermissionResult(granted)
+    }
+
+    // Ha a VM permissiont kér
+    if (uiState.needsNotificationPermission) {
+        androidx.compose.runtime.LaunchedEffect(uiState.needsNotificationPermission) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            } else {
+                viewModel.onNotificationPermissionResult(true)
+            }
+        }
+    }
     val tabs = listOf("Áttekintés", "Események", "Stat", "Felállás", "Highlight", "Odds", "AI")
     val match = uiState.match
 

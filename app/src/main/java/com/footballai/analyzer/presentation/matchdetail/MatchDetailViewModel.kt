@@ -12,6 +12,7 @@ import com.footballai.analyzer.domain.model.MatchExtraData
 import com.footballai.analyzer.domain.model.OddsRow
 import com.footballai.analyzer.util.InstantAnalyzer
 import com.footballai.analyzer.util.LeagueTranslator
+import com.footballai.analyzer.util.MatchNotificationHelper
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -41,6 +42,7 @@ data class MatchDetailUiState(
     val odds: List<OddsRow> = emptyList(),
     val similarMatches: List<Match> = emptyList(),
     val isWatched: Boolean = false,
+    val needsNotificationPermission: Boolean = false,
     val lastUpdatedLabel: String? = null,
     val selectedPlayerName: String? = null,
     val selectedPlayerInfo: String? = null,
@@ -53,6 +55,7 @@ class MatchDetailViewModel @Inject constructor(
     private val llmService: LlmService,
     private val userPreferences: UserPreferences,
     private val aiCache: AiAnalysisCache,
+    private val notifications: MatchNotificationHelper,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -65,6 +68,7 @@ class MatchDetailViewModel @Inject constructor(
     private var llmJob: Job? = null
 
     init {
+        notifications.ensureChannel()
         viewModelScope.launch {
             userPreferences.favoriteTeams.collect { favs ->
                 _uiState.value = _uiState.value.copy(favoriteTeams = favs)
@@ -120,6 +124,12 @@ class MatchDetailViewModel @Inject constructor(
             else repository.getSimilarMatches(match)
 
             val stamp = LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm"))
+            val watched = _uiState.value.isWatched
+
+            // Értesítés állásváltozáskor
+            if (watched) {
+                notifications.notifyScoreIfChanged(match, watched = true)
+            }
 
             _uiState.value = _uiState.value.copy(
                 isLoading = false,
@@ -128,7 +138,6 @@ class MatchDetailViewModel @Inject constructor(
                 headToHead = h2h,
                 autoAiEligible = autoEligible,
                 aiAnalysis = cached ?: _uiState.value.aiAnalysis,
-                isInstantAi = cached == null && (_uiState.value.isInstantAi || _uiState.value.aiAnalysis == null),
                 odds = odds,
                 similarMatches = similar,
                 lastUpdatedLabel = "Frissítve $stamp",
@@ -215,8 +224,42 @@ class MatchDetailViewModel @Inject constructor(
         viewModelScope.launch { userPreferences.toggleFavoriteTeam(teamName) }
     }
 
-    fun toggleWatchMatch() {
-        viewModelScope.launch { userPreferences.toggleWatchedMatch(matchId) }
+    /**
+     * Értesítés kapcsoló. Ha nincs permission, a UI-nak kell kérnie.
+     * @return true ha permission kell
+     */
+    fun toggleWatchMatch(): Boolean {
+        val turningOn = !_uiState.value.isWatched
+        if (turningOn && !notifications.hasPermission()) {
+            _uiState.value = _uiState.value.copy(needsNotificationPermission = true)
+            return true
+        }
+        viewModelScope.launch {
+            userPreferences.toggleWatchedMatch(matchId)
+            val match = _uiState.value.match
+            if (turningOn && match != null) {
+                notifications.notifyWatchEnabled(match)
+                notifications.notifyScoreIfChanged(match, watched = true)
+            }
+        }
+        return false
+    }
+
+    fun onNotificationPermissionResult(granted: Boolean) {
+        _uiState.value = _uiState.value.copy(needsNotificationPermission = false)
+        if (granted) {
+            notifications.ensureChannel()
+            viewModelScope.launch {
+                if (!_uiState.value.isWatched) {
+                    userPreferences.toggleWatchedMatch(matchId)
+                }
+                _uiState.value.match?.let { notifications.notifyWatchEnabled(it) }
+            }
+        }
+    }
+
+    fun clearPermissionRequest() {
+        _uiState.value = _uiState.value.copy(needsNotificationPermission = false)
     }
 
     fun selectPlayer(name: String, number: Int?, position: String?) {
