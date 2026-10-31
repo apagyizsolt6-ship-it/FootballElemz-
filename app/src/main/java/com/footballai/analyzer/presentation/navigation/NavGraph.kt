@@ -70,11 +70,12 @@ fun NavGraph() {
                 onStandingsClick = { leagueId, season, title, homeId, awayId ->
                     if (leagueId > 0 && season > 0) {
                         navController.navigate(
-                            Screen.Standings.createRoute(
-                                leagueId, season, title, homeId, awayId
-                            )
+                            Screen.Standings.createRoute(leagueId, season, title, homeId, awayId)
                         )
                     }
+                },
+                onMatchClick = { id ->
+                    navController.navigate(Screen.MatchDetail.createRoute(id))
                 }
             )
         }
