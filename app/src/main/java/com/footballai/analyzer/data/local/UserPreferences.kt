@@ -63,8 +63,6 @@ class UserPreferences @Inject constructor(
         }
     }
 
-    fun isWatched(matchId: Long, set: Set<String>): Boolean = matchId.toString() in set
-
     suspend fun setDarkTheme(dark: Boolean) {
         context.userPrefs.edit { prefs ->
             prefs[darkThemeKey] = dark
