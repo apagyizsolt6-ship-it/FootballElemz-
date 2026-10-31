@@ -23,7 +23,8 @@ data class ChatMessage(val role: String, val content: String)
 data class ChatRequest(
     val model: String,
     val messages: List<ChatMessage>,
-    val temperature: Double = 0.65
+    val temperature: Double = 0.4,
+    val max_tokens: Int = 700
 )
 
 @Serializable
@@ -38,8 +39,9 @@ class LlmService @Inject constructor(
 ) {
     private val json = Json { ignoreUnknownKeys = true }
     private val client = OkHttpClient.Builder()
-        .connectTimeout(60, TimeUnit.SECONDS)
-        .readTimeout(120, TimeUnit.SECONDS)
+        .connectTimeout(20, TimeUnit.SECONDS)
+        .readTimeout(45, TimeUnit.SECONDS)
+        .writeTimeout(20, TimeUnit.SECONDS)
         .build()
 
         suspend fun analyzeMatch(match: Match, extra: MatchExtraData): Result<String> =
@@ -145,7 +147,7 @@ A 6–7. pont legyen számszerű és indokolt.
 """.trimIndent()
         }
 
-        return base + cornersCards + "\n\nNe írj marketing-stílusú bevezetőt. Legyél tömör, de részletes (kb. 500–800 szó)."
+        return base + cornersCards + "\n\nTömör legyél: összesen max 250-350 szó. Nincs bevezető."
     }
 
     private fun buildPrompt(match: Match, extra: MatchExtraData, isTopLeague: Boolean): String {
