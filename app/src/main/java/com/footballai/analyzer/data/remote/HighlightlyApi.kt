@@ -6,6 +6,7 @@ import com.footballai.analyzer.data.remote.dto.LineupsResponse
 import com.footballai.analyzer.data.remote.dto.LiveEventDto
 import com.footballai.analyzer.data.remote.dto.MatchDetailResponse
 import com.footballai.analyzer.data.remote.dto.MatchesResponse
+import com.footballai.analyzer.data.remote.dto.OddsResponse
 import com.footballai.analyzer.data.remote.dto.StandingsResponse
 import com.footballai.analyzer.data.remote.dto.TeamStatisticsDto
 import retrofit2.http.GET
@@ -54,4 +55,10 @@ interface HighlightlyApi {
         @Query("teamIdOne") teamIdOne: Long,
         @Query("teamIdTwo") teamIdTwo: Long
     ): List<FormMatchDto>
+
+    @GET("odds")
+    suspend fun getOdds(
+        @Query("matchId") matchId: Long,
+        @Query("limit") limit: Int = 20
+    ): OddsResponse
 }
