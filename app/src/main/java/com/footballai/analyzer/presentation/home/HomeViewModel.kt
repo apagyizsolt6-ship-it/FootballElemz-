@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.footballai.analyzer.data.local.AiAnalysisCache
 import com.footballai.analyzer.data.local.UserPreferences
+import com.footballai.analyzer.util.MatchNotificationHelper
 import com.footballai.analyzer.data.repository.MatchRepository
 import com.footballai.analyzer.domain.model.Match
 import com.footballai.analyzer.util.LeagueTranslator
@@ -51,6 +52,7 @@ data class HomeUiState(
 class HomeViewModel @Inject constructor(
     private val repository: MatchRepository,
     private val userPreferences: UserPreferences,
+    private val notifications: MatchNotificationHelper,
     private val aiCache: AiAnalysisCache
 ) : ViewModel() {
 
@@ -58,6 +60,7 @@ class HomeViewModel @Inject constructor(
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 
     private var allMatches: List<Match> = emptyList()
+    private var watchedMatchIds: Set<String> = emptySet()
     private var livePollJob: Job? = null
 
     init {
@@ -73,6 +76,11 @@ class HomeViewModel @Inject constructor(
                 applyFilterAndGroup()
             }
         }
+        viewModelScope.launch {
+            userPreferences.watchedMatches.collect { ids ->
+                watchedMatchIds = ids
+            }
+        }
         loadMatches()
     }
 
@@ -81,6 +89,11 @@ class HomeViewModel @Inject constructor(
     fun selectDate(date: LocalDate) {
         if (date == _uiState.value.selectedDate) return
         _uiState.update { it.copy(selectedDate = date) }
+        viewModelScope.launch {
+            userPreferences.watchedMatches.collect { ids ->
+                watchedMatchIds = ids
+            }
+        }
         loadMatches()
     }
 
@@ -123,6 +136,12 @@ class HomeViewModel @Inject constructor(
             )
             if (result.isSuccess) {
                 allMatches = result.getOrDefault(emptyList())
+                // Figyelt meccsek állásváltozása → értesítés
+                allMatches.forEach { m ->
+                    if (m.id.toString() in watchedMatchIds) {
+                        notifications.notifyScoreIfChanged(m, watched = true)
+                    }
+                }
                 applyFilterAndGroup()
                 _uiState.update {
                     it.copy(
