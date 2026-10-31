@@ -312,4 +312,38 @@ class MatchRepository @Inject constructor(
         val h2h = try { mapForm(api.getHeadToHead(homeTeamId, awayTeamId)) } catch (_: Exception) { emptyList() }
         return com.footballai.analyzer.domain.model.HeadToHeadData(homeForm, awayForm, h2h)
     }
+
+
+    suspend fun getOdds(matchId: Long): List<com.footballai.analyzer.domain.model.OddsRow> {
+        return try {
+            val resp = api.getOdds(matchId)
+            resp.data.map {
+                com.footballai.analyzer.domain.model.OddsRow(
+                    bookmaker = listOfNotNull(it.bookmaker, it.market, it.label).joinToString(" · ").ifBlank { "Odds" },
+                    home = it.home ?: it.value,
+                    draw = it.draw,
+                    away = it.away
+                )
+            }
+        } catch (_: Exception) {
+            emptyList()
+        }
+    }
+
+    suspend fun getSimilarMatches(match: com.footballai.analyzer.domain.model.Match): List<com.footballai.analyzer.domain.model.Match> {
+        val dateStr = match.date ?: return emptyList()
+        return try {
+            val day = dateStr.take(10)
+            val localDate = java.time.LocalDate.parse(day)
+            val result = getMatchesForDate(localDate, forceRefresh = false)
+            val all = result.getOrDefault(emptyList())
+            all.filter {
+                it.id != match.id &&
+                    it.leagueName.equals(match.leagueName, ignoreCase = true) &&
+                    (it.countryName ?: "") == (match.countryName ?: "")
+            }.take(8)
+        } catch (_: Exception) {
+            emptyList()
+        }
+    }
 }
