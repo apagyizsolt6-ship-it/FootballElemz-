@@ -19,6 +19,7 @@ class UserPreferences @Inject constructor(
 ) {
     private val pinnedKey = stringSetPreferencesKey("pinned_leagues")
     private val favoriteTeamsKey = stringSetPreferencesKey("favorite_teams")
+    private val watchedMatchesKey = stringSetPreferencesKey("watched_matches")
     private val darkThemeKey = booleanPreferencesKey("dark_theme")
 
     val pinnedLeagues: Flow<Set<String>> = context.userPrefs.data.map { prefs ->
@@ -27,6 +28,10 @@ class UserPreferences @Inject constructor(
 
     val favoriteTeams: Flow<Set<String>> = context.userPrefs.data.map { prefs ->
         prefs[favoriteTeamsKey] ?: emptySet()
+    }
+
+    val watchedMatches: Flow<Set<String>> = context.userPrefs.data.map { prefs ->
+        prefs[watchedMatchesKey] ?: emptySet()
     }
 
     val isDarkTheme: Flow<Boolean> = context.userPrefs.data.map { prefs ->
@@ -48,6 +53,17 @@ class UserPreferences @Inject constructor(
             prefs[favoriteTeamsKey] = current
         }
     }
+
+    suspend fun toggleWatchedMatch(matchId: Long) {
+        val key = matchId.toString()
+        context.userPrefs.edit { prefs ->
+            val current = prefs[watchedMatchesKey]?.toMutableSet() ?: mutableSetOf()
+            if (!current.add(key)) current.remove(key)
+            prefs[watchedMatchesKey] = current
+        }
+    }
+
+    fun isWatched(matchId: Long, set: Set<String>): Boolean = matchId.toString() in set
 
     suspend fun setDarkTheme(dark: Boolean) {
         context.userPrefs.edit { prefs ->
