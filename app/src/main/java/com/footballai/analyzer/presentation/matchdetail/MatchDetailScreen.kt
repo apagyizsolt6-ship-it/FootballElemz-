@@ -824,7 +824,7 @@ private fun AiTab(
             .padding(16.dp)
     ) {
         when {
-            uiState.isAiLoading -> {
+            uiState.isAiLoading && uiState.aiAnalysis == null -> {
                 Box(
                     Modifier.fillMaxWidth().height(140.dp),
                     contentAlignment = Alignment.Center
@@ -832,15 +832,7 @@ private fun AiTab(
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         CircularProgressIndicator(color = c.green)
                         Spacer(Modifier.height(12.dp))
-                        Text(
-                            text = if (uiState.autoAiEligible) {
-                                "Automatikus AI elemzés..."
-                            } else {
-                                "AI elemzés..."
-                            },
-                            color = c.textSecondary,
-                            fontSize = 13.sp
-                        )
+                        Text("AI elemzés...", color = c.textSecondary, fontSize = 13.sp)
                     }
                 }
             }
@@ -859,6 +851,23 @@ private fun AiTab(
                 }
             }
             uiState.aiAnalysis != null -> {
+                if (uiState.isInstantAi) {
+                    Text(
+                        "Azonnali elemzés",
+                        color = c.green,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(Modifier.height(4.dp))
+                }
+                if (uiState.isAiLoading) {
+                    Text(
+                        "Részletes AI töltése a háttérben…",
+                        color = c.textSecondary,
+                        fontSize = 12.sp
+                    )
+                    Spacer(Modifier.height(8.dp))
+                }
                 val sections = com.footballai.analyzer.util.AiSectionParser.parse(
                     uiState.aiAnalysis ?: ""
                 )

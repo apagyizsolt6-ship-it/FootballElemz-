@@ -9,6 +9,7 @@ import com.footballai.analyzer.data.remote.LlmService
 import com.footballai.analyzer.data.repository.MatchRepository
 import com.footballai.analyzer.domain.model.Match
 import com.footballai.analyzer.domain.model.MatchExtraData
+import com.footballai.analyzer.util.InstantAnalyzer
 import com.footballai.analyzer.util.LeagueTranslator
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
@@ -27,9 +28,12 @@ data class MatchDetailUiState(
     val extra: MatchExtraData = MatchExtraData(),
     val selectedTab: Int = 0,
     val aiAnalysis: String? = null,
+    /** true = épp LLM fut a háttérben (az azonnali szöveg már látszik) */
     val isAiLoading: Boolean = false,
     val aiError: String? = null,
     val autoAiEligible: Boolean = false,
+    /** true = helyi azonnali elemzés, még nem LLM */
+    val isInstantAi: Boolean = false,
     val headToHead: com.footballai.analyzer.domain.model.HeadToHeadData =
         com.footballai.analyzer.domain.model.HeadToHeadData(),
     val favoriteTeams: Set<String> = emptySet(),
@@ -51,6 +55,7 @@ class MatchDetailViewModel @Inject constructor(
     val uiState: StateFlow<MatchDetailUiState> = _uiState.asStateFlow()
 
     private var livePollJob: Job? = null
+    private var llmJob: Job? = null
 
     init {
         viewModelScope.launch {
@@ -63,6 +68,10 @@ class MatchDetailViewModel @Inject constructor(
 
     fun selectTab(index: Int) {
         _uiState.value = _uiState.value.copy(selectedTab = index)
+        // AI tab megnyitásakor ha még semmi nincs → azonnali
+        if (index == 5 && _uiState.value.aiAnalysis == null && _uiState.value.match != null) {
+            showInstantAndMaybeLlm(forceLlm = false)
+        }
     }
 
     fun loadAll(silent: Boolean = false) {
@@ -107,15 +116,69 @@ class MatchDetailViewModel @Inject constructor(
                 extra = extra,
                 headToHead = h2h,
                 autoAiEligible = autoEligible,
-                aiAnalysis = _uiState.value.aiAnalysis ?: cached,
+                aiAnalysis = cached ?: _uiState.value.aiAnalysis,
+                isInstantAi = cached == null && _uiState.value.isInstantAi,
                 error = null
             )
 
-            if (!silent && autoEligible && cached == null && _uiState.value.aiAnalysis == null) {
-                generateAiAnalysis(fromAuto = true)
+            // Azonnali elemzés + opcionális LLM
+            if (!silent) {
+                if (cached != null) {
+                    // cache = kész, nincs várakozás
+                    _uiState.value = _uiState.value.copy(
+                        aiAnalysis = cached,
+                        isInstantAi = false,
+                        isAiLoading = false
+                    )
+                } else {
+                    showInstantAndMaybeLlm(forceLlm = autoEligible)
+                }
             }
 
             restartLivePolling(match.isLive)
+        }
+    }
+
+    private fun showInstantAndMaybeLlm(forceLlm: Boolean) {
+        val match = _uiState.value.match ?: return
+        val extra = _uiState.value.extra
+        val instant = InstantAnalyzer.analyze(match, extra)
+        _uiState.value = _uiState.value.copy(
+            aiAnalysis = instant,
+            isInstantAi = true,
+            isAiLoading = forceLlm,
+            aiError = null
+        )
+        if (forceLlm) {
+            runLlmInBackground(match, extra)
+        }
+    }
+
+    private fun runLlmInBackground(match: Match, extra: MatchExtraData) {
+        llmJob?.cancel()
+        llmJob = viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isAiLoading = true, aiError = null)
+            val result = llmService.analyzeMatch(match, extra)
+            if (result.isSuccess) {
+                val text = result.getOrDefault("")
+                if (text.isNotBlank()) {
+                    aiCache.put(matchId, text)
+                    _uiState.value = _uiState.value.copy(
+                        isAiLoading = false,
+                        aiAnalysis = text,
+                        isInstantAi = false,
+                        aiError = null
+                    )
+                } else {
+                    _uiState.value = _uiState.value.copy(isAiLoading = false)
+                }
+            } else {
+                // marad az azonnali elemzés, csak jelzünk
+                _uiState.value = _uiState.value.copy(
+                    isAiLoading = false,
+                    aiError = null // ne írd felül az azonnali szöveget hibával
+                )
+            }
         }
     }
 
@@ -134,27 +197,19 @@ class MatchDetailViewModel @Inject constructor(
 
     fun generateAiAnalysis(fromAuto: Boolean = false, force: Boolean = false) {
         val match = _uiState.value.match ?: return
-        if (_uiState.value.isAiLoading) return
-        if (!force && _uiState.value.aiAnalysis != null) return
+        if (_uiState.value.isAiLoading && !force) return
 
-        viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isAiLoading = true, aiError = null)
-            val result = llmService.analyzeMatch(match, _uiState.value.extra)
-            if (result.isSuccess) {
-                val text = result.getOrDefault("")
-                aiCache.put(matchId, text)
-                _uiState.value = _uiState.value.copy(
-                    isAiLoading = false,
-                    aiAnalysis = text,
-                    aiError = null
-                )
-            } else {
-                _uiState.value = _uiState.value.copy(
-                    isAiLoading = false,
-                    aiError = result.exceptionOrNull()?.message ?: "AI hiba"
-                )
-            }
+        if (force) {
+            // újragenerálás: maradhat az előző szöveg amíg jön az új
+            runLlmInBackground(match, _uiState.value.extra)
+            return
         }
+
+        if (_uiState.value.aiAnalysis != null && !_uiState.value.isInstantAi) {
+            return // van kész LLM cache
+        }
+
+        showInstantAndMaybeLlm(forceLlm = true)
     }
 
     fun regenerateAi() {
