@@ -9,6 +9,7 @@ import com.footballai.analyzer.data.remote.LlmService
 import com.footballai.analyzer.data.repository.MatchRepository
 import com.footballai.analyzer.domain.model.Match
 import com.footballai.analyzer.domain.model.MatchExtraData
+import com.footballai.analyzer.domain.model.OddsRow
 import com.footballai.analyzer.util.InstantAnalyzer
 import com.footballai.analyzer.util.LeagueTranslator
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -20,6 +21,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import java.time.LocalTime
+import java.time.format.DateTimeFormatter
 import javax.inject.Inject
 
 data class MatchDetailUiState(
@@ -28,15 +31,19 @@ data class MatchDetailUiState(
     val extra: MatchExtraData = MatchExtraData(),
     val selectedTab: Int = 0,
     val aiAnalysis: String? = null,
-    /** true = épp LLM fut a háttérben (az azonnali szöveg már látszik) */
     val isAiLoading: Boolean = false,
     val aiError: String? = null,
     val autoAiEligible: Boolean = false,
-    /** true = helyi azonnali elemzés, még nem LLM */
     val isInstantAi: Boolean = false,
     val headToHead: com.footballai.analyzer.domain.model.HeadToHeadData =
         com.footballai.analyzer.domain.model.HeadToHeadData(),
     val favoriteTeams: Set<String> = emptySet(),
+    val odds: List<OddsRow> = emptyList(),
+    val similarMatches: List<Match> = emptyList(),
+    val isWatched: Boolean = false,
+    val lastUpdatedLabel: String? = null,
+    val selectedPlayerName: String? = null,
+    val selectedPlayerInfo: String? = null,
     val error: String? = null
 )
 
@@ -63,12 +70,16 @@ class MatchDetailViewModel @Inject constructor(
                 _uiState.value = _uiState.value.copy(favoriteTeams = favs)
             }
         }
+        viewModelScope.launch {
+            userPreferences.watchedMatches.collect { set ->
+                _uiState.value = _uiState.value.copy(isWatched = matchId.toString() in set)
+            }
+        }
         loadAll()
     }
 
     fun selectTab(index: Int) {
         _uiState.value = _uiState.value.copy(selectedTab = index)
-        // AI tab megnyitásakor ha még semmi nincs → azonnali
         if (index == 5 && _uiState.value.aiAnalysis == null && _uiState.value.match != null) {
             showInstantAndMaybeLlm(forceLlm = false)
         }
@@ -83,7 +94,7 @@ class MatchDetailViewModel @Inject constructor(
             val matchResult = repository.getMatchById(matchId, forceRefresh = silent)
             if (matchResult.isFailure) {
                 if (!silent) {
-                    _uiState.value = MatchDetailUiState(
+                    _uiState.value = _uiState.value.copy(
                         isLoading = false,
                         error = matchResult.exceptionOrNull()?.message ?: "Hiba"
                     )
@@ -97,18 +108,18 @@ class MatchDetailViewModel @Inject constructor(
                 forceRefresh = silent || match.isLive,
                 isLiveHint = match.isLive
             )
-            val h2h = if (silent) {
-                _uiState.value.headToHead
-            } else {
-                repository.getHeadToHeadData(match.homeTeamId, match.awayTeamId)
-            }
+            val h2h = if (silent) _uiState.value.headToHead
+            else repository.getHeadToHeadData(match.homeTeamId, match.awayTeamId)
 
             val header = LeagueTranslator.formatHeader(match.countryName, match.leagueName)
             val pinned = userPreferences.pinnedLeagues.first()
-            val isTop = LeagueTranslator.isTopLeague(header)
-            val isPinned = pinned.contains(header)
-            val autoEligible = isTop || isPinned
+            val autoEligible = LeagueTranslator.isTopLeague(header) || header in pinned
             val cached = aiCache.get(matchId)
+            val odds = if (silent) _uiState.value.odds else repository.getOdds(matchId)
+            val similar = if (silent) _uiState.value.similarMatches
+            else repository.getSimilarMatches(match)
+
+            val stamp = LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm"))
 
             _uiState.value = _uiState.value.copy(
                 isLoading = false,
@@ -117,14 +128,15 @@ class MatchDetailViewModel @Inject constructor(
                 headToHead = h2h,
                 autoAiEligible = autoEligible,
                 aiAnalysis = cached ?: _uiState.value.aiAnalysis,
-                isInstantAi = cached == null && _uiState.value.isInstantAi,
+                isInstantAi = cached == null && (_uiState.value.isInstantAi || _uiState.value.aiAnalysis == null),
+                odds = odds,
+                similarMatches = similar,
+                lastUpdatedLabel = "Frissítve $stamp",
                 error = null
             )
 
-            // Azonnali elemzés + opcionális LLM
             if (!silent) {
                 if (cached != null) {
-                    // cache = kész, nincs várakozás
                     _uiState.value = _uiState.value.copy(
                         aiAnalysis = cached,
                         isInstantAi = false,
@@ -141,23 +153,20 @@ class MatchDetailViewModel @Inject constructor(
 
     private fun showInstantAndMaybeLlm(forceLlm: Boolean) {
         val match = _uiState.value.match ?: return
-        val extra = _uiState.value.extra
-        val instant = InstantAnalyzer.analyze(match, extra)
+        val instant = InstantAnalyzer.analyze(match, _uiState.value.extra)
         _uiState.value = _uiState.value.copy(
             aiAnalysis = instant,
             isInstantAi = true,
             isAiLoading = forceLlm,
             aiError = null
         )
-        if (forceLlm) {
-            runLlmInBackground(match, extra)
-        }
+        if (forceLlm) runLlmInBackground(match, _uiState.value.extra)
     }
 
     private fun runLlmInBackground(match: Match, extra: MatchExtraData) {
         llmJob?.cancel()
         llmJob = viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isAiLoading = true, aiError = null)
+            _uiState.value = _uiState.value.copy(isAiLoading = true)
             val result = llmService.analyzeMatch(match, extra)
             if (result.isSuccess) {
                 val text = result.getOrDefault("")
@@ -166,18 +175,13 @@ class MatchDetailViewModel @Inject constructor(
                     _uiState.value = _uiState.value.copy(
                         isAiLoading = false,
                         aiAnalysis = text,
-                        isInstantAi = false,
-                        aiError = null
+                        isInstantAi = false
                     )
                 } else {
                     _uiState.value = _uiState.value.copy(isAiLoading = false)
                 }
             } else {
-                // marad az azonnali elemzés, csak jelzünk
-                _uiState.value = _uiState.value.copy(
-                    isAiLoading = false,
-                    aiError = null // ne írd felül az azonnali szöveget hibával
-                )
+                _uiState.value = _uiState.value.copy(isAiLoading = false)
             }
         }
     }
@@ -188,8 +192,7 @@ class MatchDetailViewModel @Inject constructor(
         livePollJob = viewModelScope.launch {
             while (isActive) {
                 delay(45_000L)
-                val current = _uiState.value.match
-                if (current?.isLive != true) break
+                if (_uiState.value.match?.isLive != true) break
                 loadAll(silent = true)
             }
         }
@@ -198,27 +201,61 @@ class MatchDetailViewModel @Inject constructor(
     fun generateAiAnalysis(fromAuto: Boolean = false, force: Boolean = false) {
         val match = _uiState.value.match ?: return
         if (_uiState.value.isAiLoading && !force) return
-
         if (force) {
-            // újragenerálás: maradhat az előző szöveg amíg jön az új
             runLlmInBackground(match, _uiState.value.extra)
             return
         }
-
-        if (_uiState.value.aiAnalysis != null && !_uiState.value.isInstantAi) {
-            return // van kész LLM cache
-        }
-
+        if (_uiState.value.aiAnalysis != null && !_uiState.value.isInstantAi) return
         showInstantAndMaybeLlm(forceLlm = true)
     }
 
-    fun regenerateAi() {
-        generateAiAnalysis(fromAuto = false, force = true)
-    }
+    fun regenerateAi() = generateAiAnalysis(force = true)
 
     fun toggleFavoriteTeam(teamName: String) {
-        viewModelScope.launch {
-            userPreferences.toggleFavoriteTeam(teamName)
+        viewModelScope.launch { userPreferences.toggleFavoriteTeam(teamName) }
+    }
+
+    fun toggleWatchMatch() {
+        viewModelScope.launch { userPreferences.toggleWatchedMatch(matchId) }
+    }
+
+    fun selectPlayer(name: String, number: Int?, position: String?) {
+        val info = buildString {
+            append(name)
+            number?.let { append(" · #$it") }
+            position?.let { append(" · $it") }
+        }
+        _uiState.value = _uiState.value.copy(
+            selectedPlayerName = name,
+            selectedPlayerInfo = info
+        )
+    }
+
+    fun clearSelectedPlayer() {
+        _uiState.value = _uiState.value.copy(
+            selectedPlayerName = null,
+            selectedPlayerInfo = null
+        )
+    }
+
+    fun aiOneLiner(): String? {
+        val text = _uiState.value.aiAnalysis ?: return null
+        return text.lineSequence()
+            .map { it.trim() }
+            .filter { it.isNotBlank() && !it.startsWith("#") && !it.startsWith("_") }
+            .firstOrNull()
+            ?.take(140)
+    }
+
+    fun overviewShareText(): String {
+        val m = _uiState.value.match ?: return ""
+        val ai = aiOneLiner() ?: ""
+        return buildString {
+            appendLine("${m.homeTeamName} ${m.score} ${m.awayTeamName}")
+            appendLine(m.leagueName)
+            appendLine(m.status)
+            if (ai.isNotBlank()) appendLine(ai)
+            appendLine("— FociElemző")
         }
     }
 }
