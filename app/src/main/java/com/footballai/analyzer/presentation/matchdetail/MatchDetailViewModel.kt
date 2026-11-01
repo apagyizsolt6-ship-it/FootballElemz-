@@ -13,6 +13,7 @@ import com.footballai.analyzer.domain.model.OddsRow
 import com.footballai.analyzer.util.InstantAnalyzer
 import com.footballai.analyzer.util.LeagueTranslator
 import com.footballai.analyzer.util.MatchNotificationHelper
+import com.footballai.analyzer.fcm.FcmRegistrar
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -56,6 +57,7 @@ class MatchDetailViewModel @Inject constructor(
     private val userPreferences: UserPreferences,
     private val aiCache: AiAnalysisCache,
     private val notifications: MatchNotificationHelper,
+    private val fcmRegistrar: FcmRegistrar,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -235,12 +237,13 @@ class MatchDetailViewModel @Inject constructor(
             return true
         }
         viewModelScope.launch {
-            userPreferences.toggleWatchedMatch(matchId)
+            val enabled = userPreferences.toggleWatchedMatch(matchId)
             val match = _uiState.value.match
-            if (turningOn && match != null) {
+            if (enabled && match != null) {
                 notifications.notifyWatchEnabled(match)
                 notifications.notifyScoreIfChanged(match, watched = true)
             }
+            try { fcmRegistrar.syncWatch(matchId, enabled) } catch (_: Exception) { }
         }
         return false
     }
