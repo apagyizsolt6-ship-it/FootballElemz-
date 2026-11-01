@@ -12,25 +12,40 @@ import com.footballai.analyzer.data.remote.FcmBackendApi
 import com.footballai.analyzer.util.MatchNotificationHelper
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
-import dagger.hilt.android.AndroidEntryPoint
+import dagger.hilt.EntryPoint
+import dagger.hilt.InstallIn
+import dagger.hilt.android.EntryPointAccessors
+import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
-import javax.inject.Inject
 
-@AndroidEntryPoint
+/**
+ * Nincs @AndroidEntryPoint – Hilt EntryPoint-tal injektálunk.
+ * (FirebaseMessagingService + kapt egyébként gyakran elhasal.)
+ */
 class FociFirebaseMessagingService : FirebaseMessagingService() {
 
-    @Inject lateinit var apiKeyProvider: ApiKeyProvider
-    @Inject lateinit var fcmBackend: FcmBackendApi
+    @EntryPoint
+    @InstallIn(SingletonComponent::class)
+    interface Deps {
+        fun apiKeyProvider(): ApiKeyProvider
+        fun fcmBackendApi(): FcmBackendApi
+    }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
+    private fun deps(): Deps =
+        EntryPointAccessors.fromApplication(applicationContext, Deps::class.java)
+
     override fun onNewToken(token: String) {
         scope.launch {
-            apiKeyProvider.saveFcmToken(token)
-            fcmBackend.registerToken(token)
+            try {
+                val d = deps()
+                d.apiKeyProvider().saveFcmToken(token)
+                d.fcmBackendApi().registerToken(token)
+            } catch (_: Exception) { }
         }
     }
 
@@ -64,18 +79,19 @@ class FociFirebaseMessagingService : FirebaseMessagingService() {
             .setAutoCancel(true)
             .setContentIntent(pending)
             .build()
-        val mgr = getSystemService(NotificationManager::class.java)
-        mgr?.notify((matchId ?: System.currentTimeMillis()).toInt(), notif)
+        getSystemService(NotificationManager::class.java)
+            ?.notify((matchId ?: System.currentTimeMillis()).toInt(), notif)
     }
 
     private fun ensureChannel() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         val mgr = getSystemService(NotificationManager::class.java) ?: return
-        val ch = NotificationChannel(
-            MatchNotificationHelper.CHANNEL_ID,
-            MatchNotificationHelper.CHANNEL_NAME,
-            NotificationManager.IMPORTANCE_HIGH
+        mgr.createNotificationChannel(
+            NotificationChannel(
+                MatchNotificationHelper.CHANNEL_ID,
+                MatchNotificationHelper.CHANNEL_NAME,
+                NotificationManager.IMPORTANCE_HIGH
+            )
         )
-        mgr.createNotificationChannel(ch)
     }
 }
