@@ -5,6 +5,8 @@ plugins {
     alias(libs.plugins.hilt)
     alias(libs.plugins.kotlin.serialization)
     id("kotlin-kapt")
+    // Ha megvan a google-services.json, kapcsold be:
+    // id("com.google.gms.google-services")
 }
 
 android {
@@ -71,8 +73,11 @@ dependencies {
 
     implementation(libs.coil.compose)
 
-    // DataStore – API kulcs biztonságos tárolására
     implementation("androidx.datastore:datastore-preferences:1.1.1")
+
+    // Firebase Cloud Messaging
+    implementation(platform("com.google.firebase:firebase-bom:33.7.0"))
+    implementation("com.google.firebase:firebase-messaging-ktx")
 
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
