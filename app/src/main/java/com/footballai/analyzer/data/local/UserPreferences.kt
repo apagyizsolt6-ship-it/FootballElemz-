@@ -54,13 +54,17 @@ class UserPreferences @Inject constructor(
         }
     }
 
-    suspend fun toggleWatchedMatch(matchId: Long) {
+    /** @return true ha most bekapcsoltuk */
+    suspend fun toggleWatchedMatch(matchId: Long): Boolean {
         val key = matchId.toString()
+        var enabled = false
         context.userPrefs.edit { prefs ->
             val current = prefs[watchedMatchesKey]?.toMutableSet() ?: mutableSetOf()
-            if (!current.add(key)) current.remove(key)
+            enabled = current.add(key)
+            if (!enabled) current.remove(key)
             prefs[watchedMatchesKey] = current
         }
+        return enabled
     }
 
     suspend fun setDarkTheme(dark: Boolean) {

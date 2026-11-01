@@ -20,6 +20,9 @@ class ApiKeyProvider @Inject constructor(
     private val llmKey = stringPreferencesKey("llm_api_key")
     private val llmBaseUrl = stringPreferencesKey("llm_base_url")
     private val llmModel = stringPreferencesKey("llm_model")
+    private val fcmServerUrlKey = stringPreferencesKey("fcm_server_url")
+    private val fcmServerSecretKey = stringPreferencesKey("fcm_server_secret")
+    private val fcmTokenKey = stringPreferencesKey("fcm_token")
 
     // --- Highlightly ---
     suspend fun saveApiKey(apiKey: String) {
@@ -44,13 +47,38 @@ class ApiKeyProvider @Inject constructor(
     }
 
     suspend fun getLlmBaseUrl(): String =
-        context.dataStore.data.first()[llmBaseUrl]
-            ?: "https://api.openai.com/v1/"
+        context.dataStore.data.first()[llmBaseUrl] ?: "https://api.x.ai/v1/"
 
     suspend fun saveLlmModel(model: String) {
         context.dataStore.edit { it[llmModel] = model.trim() }
     }
 
     suspend fun getLlmModel(): String =
-        context.dataStore.data.first()[llmModel] ?: "gpt-4o-mini"
+        context.dataStore.data.first()[llmModel] ?: "grok-4.7"
+
+    // --- FCM backend ---
+    suspend fun saveFcmServerUrl(url: String) {
+        context.dataStore.edit { it[fcmServerUrlKey] = url.trim() }
+    }
+
+    suspend fun getFcmServerUrl(): String =
+        context.dataStore.data.first()[fcmServerUrlKey] ?: ""
+
+    fun getFcmServerUrlBlocking(): String = runBlocking { getFcmServerUrl() }
+
+    suspend fun saveFcmServerSecret(secret: String) {
+        context.dataStore.edit { it[fcmServerSecretKey] = secret.trim() }
+    }
+
+    suspend fun getFcmServerSecret(): String =
+        context.dataStore.data.first()[fcmServerSecretKey] ?: ""
+
+    fun getFcmServerSecretBlocking(): String = runBlocking { getFcmServerSecret() }
+
+    suspend fun saveFcmToken(token: String) {
+        context.dataStore.edit { it[fcmTokenKey] = token.trim() }
+    }
+
+    suspend fun getFcmToken(): String =
+        context.dataStore.data.first()[fcmTokenKey] ?: ""
 }
