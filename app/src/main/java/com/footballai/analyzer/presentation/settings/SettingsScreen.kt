@@ -208,6 +208,32 @@ fun SettingsScreen(
                 Text("Mentés", fontWeight = FontWeight.Bold)
             }
 
+            
+            Spacer(modifier = Modifier.height(20.dp))
+            Text("FCM háttérszerver", color = c.textPrimary, fontWeight = FontWeight.SemiBold)
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                "Render/Railway URL (https://...). Üres = csak helyi értesítés.",
+                color = c.textSecondary,
+                fontSize = 12.sp
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            OutlinedTextField(
+                value = uiState.fcmServerUrl,
+                onValueChange = viewModel::onFcmServerUrlChange,
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                label = { Text("Szerver URL") }
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            OutlinedTextField(
+                value = uiState.fcmServerSecret,
+                onValueChange = viewModel::onFcmServerSecretChange,
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                label = { Text("API secret (opcionális)") }
+            )
+
             Spacer(modifier = Modifier.height(16.dp))
             Button(
                 onClick = { viewModel.clearCaches() },
